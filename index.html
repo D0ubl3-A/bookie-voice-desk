@@ -4,28 +4,25 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Bookie Voice Desk</title>
-  <meta name="description" content="A browser-based sports betting voice assistant that listens to the call, tracks bets, and turns live audio into a strategy board." />
+  <meta name="description" content="A simple chatbot-style sports betting voice assistant that listens to a call, tracks bets, and gives strategy notes." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #06111d;
-      --bg2: #0a1626;
-      --surface: #0f1d31;
-      --surface-2: #13253c;
-      --surface-3: #1a3250;
-      --text: #eef4fb;
-      --muted: #95a9bf;
-      --border: rgba(172, 197, 224, 0.16);
-      --accent: #29c7b6;
-      --accent-2: #12a888;
+      --panel: rgba(13, 25, 42, 0.92);
+      --panel-2: rgba(19, 36, 57, 0.9);
+      --text: #edf5ff;
+      --muted: #8ea3b8;
+      --border: rgba(161, 184, 210, 0.16);
+      --accent: #2ad1be;
+      --accent-2: #13b091;
       --warn: #ffb45c;
       --bad: #ff6f72;
       --good: #7ef0a9;
-      --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
-      --radius: 16px;
-      --radius-sm: 12px;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+      --radius: 18px;
       --font-sans: "Manrope", "Segoe UI", sans-serif;
       --font-mono: "IBM Plex Mono", Consolas, monospace;
     }
@@ -37,15 +34,13 @@
       font-family: var(--font-sans);
       color: var(--text);
       background:
-        linear-gradient(180deg, rgba(7, 17, 29, 0.88), rgba(7, 17, 29, 0.98)),
-        radial-gradient(circle at top left, rgba(41, 199, 182, 0.14), transparent 28%),
-        radial-gradient(circle at top right, rgba(255, 180, 92, 0.12), transparent 25%),
-        linear-gradient(180deg, var(--bg), var(--bg2));
+        radial-gradient(circle at top left, rgba(42, 209, 190, 0.13), transparent 28%),
+        radial-gradient(circle at top right, rgba(255, 180, 92, 0.10), transparent 24%),
+        linear-gradient(180deg, #07111d, #0a1626);
     }
 
-    button, input, select, textarea { font: inherit; }
+    button, input, textarea { font: inherit; }
     button { cursor: pointer; }
-    a { color: inherit; text-decoration: none; }
 
     .app {
       min-height: 100vh;
@@ -58,20 +53,16 @@
       justify-content: space-between;
       gap: 16px;
       align-items: flex-start;
-      padding: 20px 24px 14px;
+      padding: 18px 22px 14px;
       border-bottom: 1px solid var(--border);
       background: rgba(6, 17, 29, 0.82);
       backdrop-filter: blur(14px);
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 20;
     }
 
-    .brand {
-      display: grid;
-      gap: 7px;
-    }
-
+    .brand { display: grid; gap: 7px; }
     .eyebrow {
       margin: 0;
       text-transform: uppercase;
@@ -83,14 +74,13 @@
 
     h1 {
       margin: 0;
-      font-size: clamp(26px, 2.5vw, 38px);
+      font-size: clamp(26px, 2.6vw, 40px);
       line-height: 1.05;
-      letter-spacing: 0;
     }
 
     .lede {
       margin: 0;
-      max-width: 76ch;
+      max-width: 78ch;
       color: var(--muted);
       line-height: 1.5;
       font-size: 14px;
@@ -110,247 +100,144 @@
       padding: 8px 12px;
       border-radius: 999px;
       border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
       font-size: 12px;
       white-space: nowrap;
-      color: var(--muted);
     }
-
-    .pill strong {
-      color: var(--text);
-    }
+    .pill strong { color: var(--text); }
 
     .workspace {
-      padding: 18px 24px 18px;
+      padding: 18px 22px 18px;
       display: grid;
-      grid-template-columns: minmax(300px, 370px) minmax(0, 1fr) minmax(320px, 390px);
-      gap: 16px;
-      align-items: start;
+      place-items: center;
     }
 
-    .panel {
+    .chat-shell {
+      width: min(100%, 960px);
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: 14px;
+    }
+
+    .chat-panel {
       background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       overflow: hidden;
-      min-height: 100%;
-    }
-
-    .panel-head {
-      padding: 16px 16px 12px;
-      border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(41, 199, 182, 0.08), transparent);
-    }
-
-    .panel-head h2 {
-      margin: 0 0 4px 0;
-      font-size: 16px;
-      line-height: 1.2;
-    }
-
-    .panel-head p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .panel-body {
-      padding: 16px;
-    }
-
-    .stack {
       display: grid;
-      gap: 16px;
+      grid-template-rows: auto 1fr;
+      min-height: min(72vh, 900px);
     }
 
-    .form {
-      display: grid;
-      gap: 14px;
-    }
-
-    .field {
-      display: grid;
-      gap: 6px;
-    }
-
-    .field label, .section-label, .small-label {
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    textarea, input, select {
-      width: 100%;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      padding: 11px 12px;
-      outline: none;
-      transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
-    }
-
-    textarea {
-      min-height: 92px;
-      resize: vertical;
-    }
-
-    textarea:focus, input:focus, select:focus {
-      border-color: rgba(41, 199, 182, 0.65);
-      box-shadow: 0 0 0 3px rgba(41, 199, 182, 0.15);
-      background: rgba(255,255,255,0.06);
-    }
-
-    .inline-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .three-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .toggle-row {
+    .chat-head {
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .toggle {
-      display: inline-flex;
+      justify-content: space-between;
       align-items: center;
       gap: 10px;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      font-size: 13px;
-      user-select: none;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(42, 209, 190, 0.09), transparent);
     }
 
-    .toggle input {
-      margin: 0;
-      width: 16px;
-      height: 16px;
-      padding: 0;
+    .chat-head .meta {
+      display: grid;
+      gap: 4px;
     }
 
-    .actions {
+    .chat-head .meta strong {
+      font-size: 15px;
+    }
+
+    .chat-head .meta span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .chat-head .actions {
       display: flex;
+      gap: 8px;
       flex-wrap: wrap;
-      gap: 10px;
+      justify-content: flex-end;
     }
 
     .btn {
       border: 1px solid transparent;
-      border-radius: 12px;
-      padding: 11px 14px;
+      border-radius: 999px;
+      padding: 10px 14px;
       font-weight: 800;
-      transition: transform 120ms ease, opacity 120ms ease, border-color 120ms ease, background 120ms ease;
       display: inline-flex;
       align-items: center;
       gap: 8px;
+      transition: transform 120ms ease, opacity 120ms ease, border-color 120ms ease;
       white-space: nowrap;
     }
-
     .btn:hover { transform: translateY(-1px); }
     .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .btn-primary { background: linear-gradient(180deg, var(--accent), var(--accent-2)); color: #04161f; }
+    .btn-secondary { background: rgba(255,255,255,0.04); border-color: var(--border); color: var(--text); }
+    .btn-danger { background: rgba(255,111,114,0.08); border-color: rgba(255,111,114,0.22); color: #ffd2d3; }
 
-    .btn-primary {
-      background: linear-gradient(180deg, var(--accent), var(--accent-2));
-      color: #04161f;
-    }
-
-    .btn-secondary {
-      background: rgba(255,255,255,0.04);
-      border-color: var(--border);
-      color: var(--text);
-    }
-
-    .btn-danger {
-      background: rgba(255,111,114,0.08);
-      border-color: rgba(255,111,114,0.24);
-      color: #ffd7d9;
-    }
-
-    .subtle {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .meter {
-      height: 10px;
-      border-radius: 999px;
-      overflow: hidden;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-
-    .meter > div {
-      height: 100%;
-      width: 0%;
-      border-radius: inherit;
-      background: linear-gradient(90deg, var(--accent), var(--warn));
-      transition: width 180ms ease;
-    }
-
-    .list {
+    .messages {
+      padding: 16px;
+      overflow: auto;
       display: grid;
-      gap: 10px;
+      gap: 12px;
+      align-content: start;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255,255,255,0.03), transparent 18%),
+        rgba(4, 14, 25, 0.34);
     }
 
-    .transcript-item,
-    .bet-item,
-    .strategy-box,
-    .summary-box,
-    .info-box {
+    .messages::-webkit-scrollbar { width: 10px; }
+    .messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+
+    .bubble {
+      width: fit-content;
+      max-width: min(100%, 68ch);
+      padding: 12px 14px;
+      border-radius: 18px;
       border: 1px solid var(--border);
-      border-radius: 14px;
-      background: rgba(255,255,255,0.03);
-    }
-
-    .transcript-item {
-      padding: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
       display: grid;
       gap: 8px;
     }
 
-    .transcript-item.live {
-      border-color: rgba(41, 199, 182, 0.45);
-      box-shadow: 0 0 0 3px rgba(41, 199, 182, 0.06);
-    }
-
-    .transcript-top,
-    .bet-top,
-    .strategy-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: flex-start;
-    }
-
-    .transcript-text {
-      font-size: 14px;
-      line-height: 1.55;
-      color: var(--text);
-      word-break: break-word;
-    }
-
-    .tiny {
+    .bubble .label {
       font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
+      letter-spacing: 0.08em;
       font-weight: 800;
+      color: var(--muted);
+    }
+
+    .bubble .text {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .bubble.user {
+      margin-left: auto;
+      background: linear-gradient(180deg, rgba(42, 209, 190, 0.16), rgba(19, 176, 145, 0.08));
+      border-color: rgba(42, 209, 190, 0.22);
+    }
+
+    .bubble.assistant {
+      background: rgba(255,255,255,0.035);
+    }
+
+    .bubble.system {
+      background: rgba(255,255,255,0.02);
+      color: var(--muted);
+    }
+
+    .bubble.note {
+      background: rgba(255,180,92,0.08);
+      border-color: rgba(255,180,92,0.20);
     }
 
     .chips {
@@ -372,62 +259,130 @@
       border: 0;
       appearance: none;
     }
-
     .chip.good { background: rgba(126,240,169,0.12); color: #a8f3bf; }
     .chip.warn { background: rgba(255,180,92,0.14); color: #ffd090; }
     .chip.bad { background: rgba(255,111,114,0.12); color: #ffb9bc; }
-    .chip.accent { background: rgba(41,199,182,0.14); color: #9ef2e8; }
+    .chip.accent { background: rgba(42,209,190,0.14); color: #9ef2e8; }
 
-    .audio-meter {
+    .composer {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .row {
       display: flex;
-      align-items: flex-end;
-      gap: 5px;
-      height: 32px;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
     }
 
-    .audio-meter span {
-      display: block;
-      width: 7px;
-      height: 8px;
+    .input-wrap {
+      display: grid;
+      gap: 10px;
+    }
+
+    textarea, input, select {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    textarea { min-height: 82px; resize: vertical; }
+    textarea:focus, input:focus, select:focus {
+      border-color: rgba(42,209,190,0.65);
+      box-shadow: 0 0 0 3px rgba(42,209,190,0.14);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .quickbar {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .quick {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.03);
+      padding: 10px 12px;
+      display: grid;
+      gap: 3px;
+      min-height: 70px;
+    }
+    .quick span {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 800;
+    }
+    .quick strong {
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .meter {
+      height: 10px;
       border-radius: 999px;
-      background: linear-gradient(180deg, var(--accent), var(--warn));
-      opacity: 0.4;
-      transform-origin: center bottom;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+    .meter > div {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--warn));
+      transition: width 180ms ease;
     }
 
-    .listening .audio-meter span {
-      animation: pulse 1s ease-in-out infinite;
+    .live-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
     }
 
-    .listening .audio-meter span:nth-child(2n) { animation-delay: 0.1s; }
-    .listening .audio-meter span:nth-child(3n) { animation-delay: 0.2s; }
-    .listening .audio-meter span:nth-child(4n) { animation-delay: 0.3s; }
-    .listening .audio-meter span:nth-child(5n) { animation-delay: 0.4s; }
-
-    @keyframes pulse {
-      0%, 100% { transform: scaleY(0.35); opacity: 0.35; }
-      50% { transform: scaleY(1.5); opacity: 1; }
+    .list {
+      display: grid;
+      gap: 10px;
     }
 
-    .bet-item {
+    .bet-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
       padding: 12px;
       display: grid;
       gap: 10px;
     }
 
-    .bet-title {
-      display: grid;
-      gap: 4px;
+    .bet-card-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
     }
 
-    .bet-title strong {
+    .bet-card strong {
       font-size: 15px;
     }
 
     .bet-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
+      gap: 8px;
     }
 
     .kv {
@@ -453,116 +408,45 @@
       word-break: break-word;
     }
 
-    .panel-scroll {
-      max-height: 58vh;
-      overflow: auto;
-      padding-right: 4px;
-    }
-
-    .panel-scroll::-webkit-scrollbar {
-      width: 10px;
-    }
-    .panel-scroll::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.14);
-      border-radius: 999px;
-    }
-
-    .empty {
-      border: 1px dashed var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      color: var(--muted);
-      background: rgba(255,255,255,0.02);
-    }
-
-    .strategy-grid {
-      display: grid;
-      gap: 10px;
-    }
-
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .summary-box {
-      padding: 12px;
-      display: grid;
-      gap: 4px;
-    }
-
-    .summary-box strong {
-      font-size: 20px;
-      line-height: 1;
-    }
-
-    .summary-box span {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.4;
-    }
-
-    .strategy-box {
-      padding: 12px;
-      display: grid;
-      gap: 8px;
-    }
-
-    .strategy-box ul {
-      margin: 0;
-      padding-left: 18px;
-      display: grid;
-      gap: 6px;
-      color: var(--text);
-    }
-
-    .strategy-box li { line-height: 1.45; }
-
-    .draft-grid {
-      display: grid;
-      gap: 10px;
-    }
-
-    .draft-grid .inline-grid,
-    .draft-grid .three-grid {
-      margin-top: 2px;
-    }
-
-    .footer {
-      padding: 0 24px 18px;
+    .mini {
       color: var(--muted);
       font-size: 12px;
       line-height: 1.5;
     }
 
-    .footer .info-box {
-      padding: 12px 14px;
+    .footer {
+      padding: 0 22px 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .footer .info {
+      border: 1px solid var(--border);
+      border-radius: 14px;
       background: rgba(255,255,255,0.02);
+      padding: 12px 14px;
     }
 
-    .split {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: center;
+    .listening .meter > div {
+      animation: meterPulse 1.1s ease-in-out infinite;
     }
 
-    .right {
-      text-align: right;
+    @keyframes meterPulse {
+      0%, 100% { width: 20%; }
+      50% { width: 90%; }
     }
 
-    @media (max-width: 1180px) {
-      .workspace { grid-template-columns: minmax(0, 1fr); }
-      .panel-scroll { max-height: none; }
-    }
-
-    @media (max-width: 760px) {
+    @media (max-width: 900px) {
       .topbar, .workspace, .footer { padding-left: 14px; padding-right: 14px; }
       .topbar { position: static; }
-      .inline-grid, .bet-grid, .summary-grid, .three-grid { grid-template-columns: 1fr; }
+      .quickbar, .bet-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      .quickbar, .bet-grid { grid-template-columns: 1fr; }
       .statusrow { justify-content: flex-start; }
-      .split { align-items: flex-start; flex-direction: column; }
+      .chat-panel { min-height: 66vh; }
     }
   </style>
 </head>
@@ -571,10 +455,8 @@
     <header class="topbar">
       <div class="brand">
         <p class="eyebrow">Bookie Voice Desk</p>
-        <h1>Listen to the call, track the bet, and keep the strategy visible.</h1>
-        <p class="lede">
-          A browser-based voice assistant for sports betting workflow: capture spoken lines from a live call, turn them into tracked bets, and keep a strategy board that stays grounded in the transcript.
-        </p>
+        <h1>One chat window for the call, the bet, and the strategy.</h1>
+        <p class="lede">Listen to the game audio, turn the transcript into notes, and keep a live bet record without the dashboard clutter.</p>
       </div>
       <div class="statusrow">
         <div class="pill">Mic <strong id="micState">idle</strong></div>
@@ -584,263 +466,117 @@
     </header>
 
     <main class="workspace">
-      <section class="panel" id="voicePanel">
-        <div class="panel-head">
-          <div class="split">
-            <div>
-              <h2>Voice feed</h2>
-              <p>Play the call over speakers, press listen, and let the browser capture the transcript.</p>
+      <section class="chat-shell">
+        <section class="chat-panel" id="voicePanel">
+          <div class="chat-head">
+            <div class="meta">
+              <strong>Chat</strong>
+              <span>Speak, paste, or type what you hear. The assistant turns it into a bet draft and strategy note.</span>
             </div>
-            <div class="audio-meter" aria-hidden="true">
-              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-            </div>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div class="form">
             <div class="actions">
-              <button class="btn btn-primary" id="startBtn" type="button">▶ Listen</button>
+              <button class="btn btn-primary" id="listenBtn" type="button">▶ Listen</button>
               <button class="btn btn-danger" id="stopBtn" type="button" disabled>■ Stop</button>
-              <button class="btn btn-secondary" id="clearTranscriptBtn" type="button">↻ Clear transcript</button>
             </div>
+          </div>
+          <div class="messages" id="messages"></div>
+        </section>
 
-            <div class="inline-grid">
-              <div class="field">
-                <label for="bankroll">Bankroll</label>
-                <input id="bankroll" type="number" min="0" step="100" placeholder="5000" />
-              </div>
-              <div class="field">
-                <label for="unitSize">Unit size</label>
-                <input id="unitSize" type="number" min="0" step="1" placeholder="100" />
-              </div>
-            </div>
+        <section class="composer">
+          <div class="quickbar">
+            <div class="quick"><span>Status</span><strong id="statusTitle">Ready</strong></div>
+            <div class="quick"><span>Draft</span><strong id="draftState">Idle</strong></div>
+            <div class="quick"><span>Signal</span><strong id="signalScore">0</strong></div>
+            <div class="quick"><span>Confidence</span><strong id="confidenceScore">0%</strong></div>
+          </div>
 
-            <div class="field">
-              <label for="manualTranscript">Paste or note the call</label>
-              <textarea id="manualTranscript" placeholder="Type what you heard, or let speech recognition fill this live."></textarea>
-            </div>
+          <div class="meter"><div id="voiceMeter"></div></div>
+          <div class="live-line">
+            <span id="liveHint">No transcript yet.</span>
+            <span id="rateHint">Browser speech on supported browsers only.</span>
+          </div>
 
-            <div class="actions">
-              <button class="btn btn-secondary" id="addNoteBtn" type="button">＋ Add note</button>
-              <button class="btn btn-secondary" id="draftBtn" type="button">＋ Draft bet from transcript</button>
-            </div>
-
-            <div class="status">
-              <div class="meter"><div id="voiceMeter"></div></div>
-              <div class="chips" id="voiceTags"></div>
-              <div class="subtle">
-                Use only with consent. Browser speech recognition works best on Chromium-based browsers and on secure origins like Vercel.
-              </div>
+          <div class="input-wrap">
+            <textarea id="composerText" placeholder="Type a call note, or let the microphone capture the audio and then ask for a bet draft."></textarea>
+            <div class="row">
+              <button class="btn btn-secondary" id="sendBtn" type="button">Send</button>
+              <button class="btn btn-secondary" id="noteBtn" type="button">Add note</button>
+              <button class="btn btn-secondary" id="draftBtn" type="button">Draft bet</button>
+              <button class="btn btn-secondary" id="clearBtn" type="button">Clear chat</button>
             </div>
           </div>
 
-          <div style="height:14px"></div>
-          <div class="panel-scroll">
-            <div class="list" id="transcriptList"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div class="split">
-            <div>
-              <h2>Bet board</h2>
-              <p>Track the live bet, keep the status current, and turn the transcript into a clean record.</p>
+          <div class="row">
+            <div style="flex: 1 1 240px; display:grid; gap:6px;">
+              <label class="mini" for="bankroll">Bankroll</label>
+              <input id="bankroll" type="number" min="0" step="100" />
             </div>
-            <div class="chips">
-              <button class="chip accent" type="button" id="useLatestBtn">Use latest transcript</button>
+            <div style="flex: 1 1 180px; display:grid; gap:6px;">
+              <label class="mini" for="unitSize">Unit size</label>
+              <input id="unitSize" type="number" min="0" step="1" />
             </div>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div class="draft-grid">
-            <div class="field">
-              <label for="betEvent">Event</label>
-              <input id="betEvent" type="text" placeholder="Lakers vs Celtics" />
+            <div style="flex: 1 1 180px; display:grid; gap:6px;">
+              <label class="mini" for="betStatusFilter">Bet status</label>
+              <select id="betStatusFilter">
+                <option value="draft">Draft</option>
+                <option value="open">Open</option>
+                <option value="pending">Pending</option>
+                <option value="won">Won</option>
+                <option value="lost">Lost</option>
+                <option value="held">Held</option>
+              </select>
             </div>
-            <div class="inline-grid">
-              <div class="field">
-                <label for="betMarket">Market</label>
-                <select id="betMarket">
-                  <option value="">Select market</option>
-                  <option value="spread">Spread</option>
-                  <option value="moneyline">Moneyline</option>
-                  <option value="total">Total</option>
-                  <option value="prop">Prop</option>
-                  <option value="live">Live</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="betSelection">Selection</label>
-                <input id="betSelection" type="text" placeholder="Over 224.5" />
-              </div>
-            </div>
-
-            <div class="three-grid">
-              <div class="field">
-                <label for="betOdds">Odds</label>
-                <input id="betOdds" type="text" placeholder="+110" />
-              </div>
-              <div class="field">
-                <label for="betStake">Stake</label>
-                <input id="betStake" type="number" min="0" step="1" placeholder="100" />
-              </div>
-              <div class="field">
-                <label for="betBook">Book</label>
-                <input id="betBook" type="text" placeholder="DraftKings" />
-              </div>
-            </div>
-
-            <div class="inline-grid">
-              <div class="field">
-                <label for="betStatus">Status</label>
-                <select id="betStatus">
-                  <option value="draft">Draft</option>
-                  <option value="open">Open</option>
-                  <option value="pending">Pending</option>
-                  <option value="won">Won</option>
-                  <option value="lost">Lost</option>
-                  <option value="held">Held</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="betCategory">Category</label>
-                <select id="betCategory">
-                  <option value="pre">Pre-game</option>
-                  <option value="live">Live</option>
-                  <option value="total">Total</option>
-                  <option value="prop">Prop</option>
-                  <option value="parlay">Parlay</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="field">
-              <label for="betNote">Note</label>
-              <textarea id="betNote" placeholder="What the caller said, plus any context you want to keep."></textarea>
-            </div>
-
-            <div class="actions">
-              <button class="btn btn-primary" id="saveBetBtn" type="button">＋ Save bet</button>
-              <button class="btn btn-secondary" id="resetDraftBtn" type="button">↻ Reset draft</button>
-            </div>
-
-            <div class="summary-grid">
-              <div class="summary-box">
-                <strong id="draftConfidence">0%</strong>
-                <span>Draft confidence</span>
-              </div>
-              <div class="summary-box">
-                <strong id="draftQuality">0</strong>
-                <span>Signal score</span>
-              </div>
-            </div>
-
-            <div class="subtle">Draft status: <strong id="betDraftStatus">Ready</strong></div>
-
-            <div class="panel-scroll">
-              <div class="list" id="betsList"></div>
+            <div style="flex: 1 1 180px; display:grid; gap:6px;">
+              <label class="mini" for="betMarket">Market</label>
+              <select id="betMarket">
+                <option value="">Auto</option>
+                <option value="spread">Spread</option>
+                <option value="moneyline">Moneyline</option>
+                <option value="total">Total</option>
+                <option value="prop">Prop</option>
+                <option value="live">Live</option>
+              </select>
             </div>
           </div>
-        </div>
-      </section>
 
-      <section class="panel">
-        <div class="panel-head">
-          <h2>Strategy desk</h2>
-          <p>Highlights of the transcript, risk flags, and what to verify before risking money.</p>
-        </div>
-        <div class="panel-body">
-          <div class="strategy-grid">
-            <div class="summary-grid">
-              <div class="summary-box">
-                <strong id="riskCount">0</strong>
-                <span>Risk flags</span>
-              </div>
-              <div class="summary-box">
-                <strong id="lineCount">0</strong>
-                <span>Line notes</span>
-              </div>
-            </div>
+          <div class="row">
+            <button class="chip accent" id="latestBtn" type="button">Use latest transcript</button>
+            <button class="chip" id="addBetBtn" type="button">Track bet</button>
+            <button class="chip warn" id="resetDraftBtn" type="button">Reset draft</button>
+          </div>
+        </section>
 
-            <div class="strategy-box">
-              <div class="strategy-head">
-                <strong>Risk flags</strong>
-                <span class="tiny">from transcript keywords</span>
-              </div>
-              <ul id="riskFlags"></ul>
-            </div>
-
-            <div class="strategy-box">
-              <div class="strategy-head">
-                <strong>Line notes</strong>
-                <span class="tiny">market context to verify</span>
-              </div>
-              <ul id="lineNotes"></ul>
-            </div>
-
-            <div class="strategy-box">
-              <div class="strategy-head">
-                <strong>Bankroll guardrails</strong>
-                <span class="tiny">safe review, not a pick</span>
-              </div>
-              <ul id="guardrails"></ul>
-            </div>
-
-            <div class="strategy-box">
-              <div class="strategy-head">
-                <strong>Next actions</strong>
-                <span class="tiny">keep the call actionable</span>
-              </div>
-              <ul id="nextActions"></ul>
-            </div>
-
-            <div class="info-box">
-              <div class="split">
-                <div>
-                  <strong>Consent and legality</strong>
-                  <div class="subtle">Only record or transcribe audio with permission and in compliance with local law.</div>
-                </div>
-                <div class="right">
-                  <div class="tiny">No guarantees</div>
-                  <div class="subtle">This assistant organizes bets and strategy notes. It does not promise outcomes.</div>
-                </div>
-              </div>
+        <section class="chat-panel" style="min-height:auto;">
+          <div class="chat-head">
+            <div class="meta">
+              <strong>Tracked bets</strong>
+              <span>Keep the open card list visible without a second dashboard.</span>
             </div>
           </div>
-        </div>
+          <div class="messages" id="bets"></div>
+        </section>
       </section>
     </main>
 
     <footer class="footer">
-      <div class="info-box">
-        Best results: open this over HTTPS, let the call play on speakers, and keep the transcript live while you track the bet in the middle panel.
+      <div class="info">
+        Use this only with consent and within the local laws that apply to recording or transcribing audio. The assistant organizes bets and strategy notes, but it does not promise outcomes.
       </div>
     </footer>
   </div>
 
   <script>
-    const STORAGE_KEY = "bookie-voice-desk-v1";
+    const STORAGE_KEY = "bookie-voice-desk-simple-v1";
     const DEFAULT_STATE = {
       bankroll: 5000,
       unitSize: 100,
+      draftStatus: "draft",
+      market: "",
       transcript: [],
+      chat: [],
       bets: [],
-      draft: {
-        event: "",
-        market: "",
-        selection: "",
-        odds: "",
-        stake: 100,
-        book: "",
-        status: "draft",
-        category: "pre",
-        note: "",
-      },
-      liveText: "",
+      draft: { event: "", selection: "", odds: "", stake: 100, note: "", book: "", category: "pre" },
       listening: false,
-      listeningSupported: false,
+      liveText: "",
       interimText: "",
     };
 
@@ -849,19 +585,9 @@
     let recognition = null;
     let transcriptId = 0;
     let betId = 0;
-    let renderTimer = 0;
 
-    function clone(obj) {
-      return JSON.parse(JSON.stringify(obj));
-    }
-
-    function money(value) {
-      const number = Number(value || 0);
-      return `$${number.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-    }
-
-    function pct(value) {
-      return `${Math.max(0, Math.min(100, Math.round(value)))}%`;
+    function clone(value) {
+      return JSON.parse(JSON.stringify(value));
     }
 
     function loadState() {
@@ -872,8 +598,6 @@
             ...clone(DEFAULT_STATE),
             ...saved,
             draft: { ...clone(DEFAULT_STATE.draft), ...(saved.draft || {}) },
-            transcript: Array.isArray(saved.transcript) ? saved.transcript : [],
-            bets: Array.isArray(saved.bets) ? saved.bets : [],
           };
         }
       } catch {}
@@ -884,147 +608,12 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
+    function money(value) {
+      return `$${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    }
+
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
-    }
-
-    function detectSignals(text) {
-      const lower = text.toLowerCase();
-      const flags = [];
-      const lines = [];
-      const next = [];
-
-      if (/injur|questionable|out|doubtful|sidelined/.test(lower)) {
-        flags.push("Injury or availability issue mentioned");
-        next.push("Check the injury report and lineup status before entering the play.");
-      }
-      if (/back[- ]?to[- ]?back|travel|rest|fatigue/.test(lower)) {
-        flags.push("Schedule spot mentioned");
-        next.push("Check rest, travel, and any fatigue-related angle before deciding.");
-      }
-      if (/line move|moved to|steam|sharp|opened at|current line/.test(lower)) {
-        lines.push("A line move was mentioned. Compare open, current, and consensus numbers.");
-      }
-      if (/over|under|total|pace|tempo|possession/.test(lower)) {
-        lines.push("Totals language detected. Pace and possession count deserve a quick review.");
-      }
-      if (/spread|favorite|dog|underdog|points/.test(lower)) {
-        lines.push("Spread language detected. Confirm the margin market and key numbers.");
-      }
-      if (/live|in[- ]game|during the game|halftime/.test(lower)) {
-        flags.push("Live betting context");
-        next.push("Live markets move fast. Recheck score, clock, and injury context before acting.");
-      }
-      if (/weather|wind|rain|snow|surface/.test(lower)) {
-        flags.push("Weather or field conditions mentioned");
-        next.push("Verify weather and venue conditions if the sport is outdoor.");
-      }
-      if (/moneyline|ml/.test(lower)) {
-        lines.push("Moneyline language detected. Compare implied probability against your review notes.");
-      }
-      if (/unit|stake|risk/.test(lower)) {
-        next.push("Keep stake sizing within your bankroll guardrails.");
-      }
-
-      if (!flags.length) flags.push("No obvious risk flag detected in current transcript.");
-      if (!lines.length) lines.push("No line movement language detected yet.");
-      if (!next.length) next.push("Keep listening until you hear a clear angle, then confirm the bet details.");
-
-      return { flags, lines, next };
-    }
-
-    function draftFromText(text) {
-      const lower = text.toLowerCase();
-      const draft = clone(DEFAULT_STATE.draft);
-      draft.note = text.trim();
-
-      const odds = text.match(/([+-]\d{3,4}|even|evens)/i);
-      if (odds) draft.odds = odds[1].toUpperCase();
-
-      const stake = text.match(/(\d+(?:\.\d+)?)\s*(?:u|unit|units|\$|dollars)/i);
-      if (stake) draft.stake = Number(stake[1]);
-
-      if (/spread/.test(lower)) draft.market = "spread";
-      else if (/moneyline|ml/.test(lower)) draft.market = "moneyline";
-      else if (/over|under|total/.test(lower)) draft.market = "total";
-      else if (/prop/.test(lower)) draft.market = "prop";
-      else if (/live|in[- ]game/.test(lower)) draft.market = "live";
-
-      if (/over/.test(lower)) {
-        const over = text.match(/over\s+([0-9]+(?:\.[0-9]+)?)/i);
-        draft.selection = over ? `Over ${over[1]}` : "Over";
-      } else if (/under/.test(lower)) {
-        const under = text.match(/under\s+([0-9]+(?:\.[0-9]+)?)/i);
-        draft.selection = under ? `Under ${under[1]}` : "Under";
-      } else if (/moneyline|ml/.test(lower)) {
-        draft.selection = "Moneyline";
-      } else if (/spread/.test(lower)) {
-        draft.selection = "Spread";
-      }
-
-      if (/lock|best play|play|take|bet/.test(lower)) {
-        draft.status = "open";
-      }
-
-      return draft;
-    }
-
-    function getLatestTranscriptText() {
-      return state.transcript.map((item) => item.text).join(" ").trim();
-    }
-
-    function applySignals() {
-      const sourceText = state.liveText || getLatestTranscriptText() || state.draft.note;
-      const signal = detectSignals(sourceText);
-      DOM.riskCount.textContent = signal.flags.length;
-      DOM.lineCount.textContent = signal.lines.length;
-      renderList(DOM.riskFlags, signal.flags);
-      renderList(DOM.lineNotes, signal.lines);
-      renderList(DOM.nextActions, signal.next);
-
-      const bankroll = Number(state.bankroll || 0);
-      const totalStake = state.bets
-        .filter((bet) => ["draft", "open", "pending", "held"].includes(bet.status))
-        .reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
-      const ratio = bankroll > 0 ? (totalStake / bankroll) * 100 : 0;
-      DOM.exposureTotal.textContent = money(totalStake);
-      DOM.openCount.textContent = state.bets.filter((bet) => ["draft", "open", "pending", "held"].includes(bet.status)).length;
-      DOM.voiceMeterFill.style.width = state.listening ? "82%" : "18%";
-
-      const confidence = clamp(
-        (state.liveText ? 25 : 0) +
-        (state.transcript.length ? 25 : 0) +
-        (state.draft.market ? 20 : 0) +
-        (state.draft.selection ? 15 : 0) +
-        (state.draft.odds ? 10 : 0) +
-        (state.draft.stake ? 5 : 0),
-        0,
-        100
-      );
-      const quality = clamp(100 - ratio - (state.bets.filter((bet) => bet.status === "lost").length * 5), 0, 100);
-      DOM.draftConfidence.textContent = pct(confidence);
-      DOM.draftQuality.textContent = Math.round(quality);
-
-      const tags = [];
-      if (state.listening) tags.push(["listening", "accent"]);
-      if (state.liveText) tags.push(["live transcript", "good"]);
-      if (state.draft.market) tags.push([state.draft.market, "warn"]);
-      if (state.draft.selection) tags.push([state.draft.selection, "accent"]);
-      if (state.bets.length) tags.push([`${state.bets.length} bet(s) tracked`, "good"]);
-      DOM.voiceTags.innerHTML = tags.map(([label, tone]) => `<span class="chip ${tone}">${label}</span>`).join("");
-
-      const status = state.listening ? "listening" : "idle";
-      DOM.micState.textContent = status;
-      DOM.appRoot.classList.toggle("listening", state.listening);
-      saveState();
-    }
-
-    function renderList(container, items) {
-      if (!items || !items.length) {
-        container.innerHTML = '<li class="subtle">Nothing to flag yet.</li>';
-        return;
-      }
-      container.innerHTML = items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
     }
 
     function escapeHtml(value) {
@@ -1036,141 +625,152 @@
         .replaceAll("'", "&#039;");
     }
 
-    function appendTranscript(text, confidence = null, source = "speech") {
+    function detectSignals(text) {
+      const lower = String(text || "").toLowerCase();
+      const flags = [];
+      const notes = [];
+      const next = [];
+
+      if (/injur|questionable|out|doubtful|sidelined/.test(lower)) {
+        flags.push("Injury or availability mentioned");
+        next.push("Check the injury report and lineup status before entering the play.");
+      }
+      if (/line move|steam|opened at|current line|moved to/.test(lower)) {
+        notes.push("Line movement mentioned. Recheck the market before acting.");
+      }
+      if (/over|under|total|pace|tempo/.test(lower)) {
+        notes.push("Totals language detected. Confirm pace and possession context.");
+      }
+      if (/spread|favorite|dog|underdog/.test(lower)) {
+        notes.push("Spread language detected. Confirm the current number.");
+      }
+      if (/live|in[- ]game|halftime/.test(lower)) {
+        flags.push("Live betting context");
+        next.push("Live markets move fast. Recheck score, clock, and injury context.");
+      }
+      if (/weather|wind|rain|snow/.test(lower)) {
+        flags.push("Weather or field conditions mentioned");
+        next.push("Check weather and venue conditions if the sport is outdoors.");
+      }
+      if (/back[- ]?to[- ]?back|travel|rest|fatigue/.test(lower)) {
+        flags.push("Schedule spot mentioned");
+        next.push("Look at rest, travel, and fatigue before deciding.");
+      }
+
+      if (!flags.length) flags.push("No obvious risk flag detected yet.");
+      if (!notes.length) notes.push("No line movement language detected yet.");
+      if (!next.length) next.push("Keep listening until the call gives you a clear angle.");
+
+      return { flags, notes, next };
+    }
+
+    function draftFromText(text) {
+      const lower = String(text || "").toLowerCase();
+      const draft = clone(DEFAULT_STATE.draft);
+      draft.note = String(text || "").trim();
+
+      const odds = draft.note.match(/([+-]\d{3,4}|even|evens)/i);
+      if (odds) draft.odds = odds[1].toUpperCase();
+
+      const stake = draft.note.match(/(\d+(?:\.\d+)?)\s*(?:u|unit|units|\$|dollars)/i);
+      if (stake) draft.stake = Number(stake[1]);
+
+      if (/moneyline|ml/.test(lower)) draft.selection = "Moneyline";
+      else if (/over/.test(lower)) {
+        const over = draft.note.match(/over\s+([0-9]+(?:\.[0-9]+)?)/i);
+        draft.selection = over ? `Over ${over[1]}` : "Over";
+      } else if (/under/.test(lower)) {
+        const under = draft.note.match(/under\s+([0-9]+(?:\.[0-9]+)?)/i);
+        draft.selection = under ? `Under ${under[1]}` : "Under";
+      } else if (/spread/.test(lower)) draft.selection = "Spread";
+      else if (/prop/.test(lower)) draft.selection = "Prop";
+
+      if (/live|in[- ]game/.test(lower)) draft.category = "live";
+      if (/parlay/.test(lower)) draft.category = "parlay";
+
+      if (/open|play|take|bet|lock/.test(lower)) {
+        state.draftStatus = "open";
+      }
+
+      return draft;
+    }
+
+    function pushChat(role, text, kind = "") {
+      state.chat.unshift({
+        id: Date.now() + Math.random(),
+        role,
+        kind,
+        text,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      });
+      state.chat = state.chat.slice(0, 50);
+    }
+
+    function appendTranscript(text, source = "speech", confidence = null) {
       const cleaned = String(text || "").trim();
       if (!cleaned) return;
       state.transcript.unshift({
         id: ++transcriptId,
         text: cleaned,
-        confidence,
         source,
+        confidence,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       });
       state.transcript = state.transcript.slice(0, 40);
       state.liveText = cleaned;
-      state.interimText = "";
+      pushChat(source === "note" ? "note" : "user", cleaned, source);
       if (!state.draft.note) state.draft.note = cleaned;
-      scheduleRender();
+      render();
     }
 
-    function createBetFromDraft() {
-      const d = state.draft;
-      const event = d.event.trim() || "Untitled event";
-      const bet = {
-        id: ++betId,
-        event,
-        market: d.market || "draft",
-        selection: d.selection || "",
-        odds: d.odds || "",
-        stake: Number(d.stake || 0),
-        book: d.book.trim(),
-        status: d.status || "draft",
-        category: d.category || "pre",
-        note: d.note.trim(),
-        createdAt: new Date().toLocaleString(),
-      };
-      state.bets.unshift(bet);
-      state.draft = clone(DEFAULT_STATE.draft);
-      DOM.betDraftStatus.textContent = "Saved";
-      scheduleRender();
-      renderBets();
+    function summarize(text) {
+      const analysis = detectSignals(text);
+      const signalScore = clamp(
+        (text ? 25 : 0) +
+        (state.transcript.length ? 20 : 0) +
+        (state.draft.selection ? 15 : 0) +
+        (state.draft.odds ? 10 : 0) +
+        (state.draft.stake ? 10 : 0) +
+        (state.draft.event ? 10 : 0),
+        0,
+        100
+      );
+      const confidence = clamp(20 + signalScore * 0.8, 0, 100);
+      DOM.signalScore.textContent = Math.round(signalScore);
+      DOM.confidenceScore.textContent = `${Math.round(confidence)}%`;
+      return { analysis, signalScore, confidence };
     }
 
-    function loadBetIntoDraft(bet) {
-      state.draft = {
-        event: bet.event || "",
-        market: bet.market || "",
-        selection: bet.selection || "",
-        odds: bet.odds || "",
-        stake: bet.stake || 100,
-        book: bet.book || "",
-        status: bet.status || "draft",
-        category: bet.category || "pre",
-        note: bet.note || "",
-      };
-      syncDraftInputs();
-      DOM.betDraftStatus.textContent = "Loaded";
-    }
+    function renderChat() {
+      const items = state.chat.length ? state.chat : [{
+        id: "welcome",
+        role: "assistant",
+        kind: "system",
+        time: "",
+        text: "Drop in a call note or start listening. I’ll turn the transcript into a bet draft and strategy notes in the same chat.",
+      }];
 
-    function syncDraftInputs() {
-      DOM.betEvent.value = state.draft.event;
-      DOM.betMarket.value = state.draft.market;
-      DOM.betSelection.value = state.draft.selection;
-      DOM.betOdds.value = state.draft.odds;
-      DOM.betStake.value = state.draft.stake;
-      DOM.betBook.value = state.draft.book;
-      DOM.betStatus.value = state.draft.status;
-      DOM.betCategory.value = state.draft.category;
-      DOM.betNote.value = state.draft.note;
-    }
-
-    function pullDraftInputs() {
-      state.draft.event = DOM.betEvent.value.trim();
-      state.draft.market = DOM.betMarket.value;
-      state.draft.selection = DOM.betSelection.value.trim();
-      state.draft.odds = DOM.betOdds.value.trim();
-      state.draft.stake = Number(DOM.betStake.value || 0);
-      state.draft.book = DOM.betBook.value.trim();
-      state.draft.status = DOM.betStatus.value;
-      state.draft.category = DOM.betCategory.value;
-      state.draft.note = DOM.betNote.value.trim();
-    }
-
-    function renderTranscript() {
-      if (!state.transcript.length) {
-        DOM.transcriptList.innerHTML = '<div class="empty">No transcript yet. Press listen or paste a note.</div>';
-        return;
-      }
-
-      const live = state.interimText
-        ? `<div class="transcript-item live"><div class="transcript-top"><div class="tiny">Listening live</div><div class="tiny">${state.listening ? "capturing" : "interim"}</div></div><div class="transcript-text">${escapeHtml(state.interimText)}</div></div>`
-        : "";
-
-      DOM.transcriptList.innerHTML = live + state.transcript.map((item) => `
-        <article class="transcript-item">
-          <div class="transcript-top">
-            <div>
-              <div class="tiny">${escapeHtml(item.source)} · ${escapeHtml(item.time)}</div>
-            </div>
-            <div class="tiny">${item.confidence ? `${Math.round(item.confidence * 100)}%` : "spoken"}</div>
-          </div>
-          <div class="transcript-text">${escapeHtml(item.text)}</div>
-          <div class="chips">
-            <span class="chip">${item.source}</span>
-            <button class="chip accent" data-draft-from="${item.id}" type="button">Draft bet</button>
-          </div>
+      DOM.messages.innerHTML = items.map((item) => `
+        <article class="bubble ${item.role} ${item.kind || ""}">
+          <div class="label">${item.role}${item.time ? ` · ${escapeHtml(item.time)}` : ""}</div>
+          <div class="text">${escapeHtml(item.text)}</div>
         </article>
       `).join("");
-
-      DOM.transcriptList.querySelectorAll("[data-draft-from]").forEach((button) => {
-        button.addEventListener("click", () => {
-          const item = state.transcript.find((entry) => String(entry.id) === button.dataset.draftFrom);
-          if (!item) return;
-          state.draft = draftFromText(item.text);
-          syncDraftInputs();
-          DOM.betDraftStatus.textContent = "Drafted from transcript";
-          render();
-        });
-      });
     }
 
     function renderBets() {
-      if (!state.bets.length) {
-        DOM.betsList.innerHTML = '<div class="empty">No bets tracked yet. Capture a call, draft the play, then save it here.</div>';
-        return;
-      }
-      DOM.betsList.innerHTML = state.bets.map((bet) => {
+      DOM.bets.innerHTML = state.bets.length ? state.bets.map((bet) => {
         const active = ["draft", "open", "pending", "held"].includes(bet.status);
         const tone = bet.status === "won" ? "good" : bet.status === "lost" ? "bad" : bet.status === "held" ? "warn" : "accent";
         return `
-          <article class="bet-item">
-            <div class="bet-top">
-              <div class="bet-title">
-                <strong>${escapeHtml(bet.event)}</strong>
-                <div class="subtle">${escapeHtml(bet.market)} · ${escapeHtml(bet.category)} · ${escapeHtml(bet.createdAt)}</div>
+          <article class="bet-card">
+            <div class="bet-card-top">
+              <div>
+                <strong>${escapeHtml(bet.event || "Untitled event")}</strong>
+                <div class="mini">${escapeHtml(bet.market || "auto")} · ${escapeHtml(bet.category || "pre")} · ${escapeHtml(bet.time || "")}</div>
               </div>
               <div class="chips">
-                <span class="chip ${tone}">${escapeHtml(bet.status)}</span>
+                <span class="chip ${tone}">${escapeHtml(bet.status || "draft")}</span>
                 <span class="chip">${active ? "open" : "closed"}</span>
               </div>
             </div>
@@ -1180,120 +780,240 @@
               <div class="kv"><span class="k">Stake</span><span class="v">${money(bet.stake)}</span></div>
               <div class="kv"><span class="k">Book</span><span class="v">${escapeHtml(bet.book || "Not set")}</span></div>
             </div>
-            <div class="subtle">${escapeHtml(bet.note || "No note attached.")}</div>
-            <div class="actions">
-              <button class="btn btn-secondary" data-load-bet="${bet.id}" type="button">Load</button>
-              <button class="btn btn-secondary" data-toggle-bet="${bet.id}" type="button">${active ? "Close" : "Open"}</button>
-              <button class="btn btn-danger" data-remove-bet="${bet.id}" type="button">Remove</button>
+            <div class="mini">${escapeHtml(bet.note || "No note attached.")}</div>
+            <div class="row">
+              <button class="chip accent" data-load-bet="${bet.id}" type="button">Load</button>
+              <button class="chip" data-toggle-bet="${bet.id}" type="button">${active ? "Close" : "Open"}</button>
+              <button class="chip warn" data-remove-bet="${bet.id}" type="button">Remove</button>
             </div>
           </article>
         `;
-      }).join("");
+      }).join("") : '<div class="bubble system"><div class="label">system</div><div class="text">No bets tracked yet. Draft one from the chat.</div></div>';
 
-      DOM.betsList.querySelectorAll("[data-load-bet]").forEach((button) => {
+      DOM.bets.querySelectorAll("[data-load-bet]").forEach((button) => {
         button.addEventListener("click", () => {
           const bet = state.bets.find((entry) => String(entry.id) === button.dataset.loadBet);
-          if (bet) loadBetIntoDraft(bet);
-          scheduleRender();
+          if (!bet) return;
+          state.draft = {
+            event: bet.event || "",
+            selection: bet.selection || "",
+            odds: bet.odds || "",
+            stake: bet.stake || 100,
+            note: bet.note || "",
+            book: bet.book || "",
+            category: bet.category || "pre",
+          };
+          state.market = bet.market || "";
+          DOM.betMarket.value = state.market;
+          syncDraftInputs();
+          state.draftStatus = "loaded";
+          pushChat("assistant", `Loaded bet draft for ${bet.event || "that play"}.`, "system");
+          render();
         });
       });
 
-      DOM.betsList.querySelectorAll("[data-toggle-bet]").forEach((button) => {
+      DOM.bets.querySelectorAll("[data-toggle-bet]").forEach((button) => {
         button.addEventListener("click", () => {
           const bet = state.bets.find((entry) => String(entry.id) === button.dataset.toggleBet);
           if (!bet) return;
-          if (bet.status === "open") bet.status = "held";
-          else if (bet.status === "held") bet.status = "open";
-          else if (bet.status === "draft") bet.status = "open";
-          else if (bet.status === "pending") bet.status = "open";
-          scheduleRender();
+          bet.status = bet.status === "open" ? "held" : "open";
+          pushChat("assistant", `${bet.event || "That bet"} is now marked ${bet.status}.`, "system");
+          render();
         });
       });
 
-      DOM.betsList.querySelectorAll("[data-remove-bet]").forEach((button) => {
+      DOM.bets.querySelectorAll("[data-remove-bet]").forEach((button) => {
         button.addEventListener("click", () => {
           state.bets = state.bets.filter((entry) => String(entry.id) !== button.dataset.removeBet);
-          scheduleRender();
-          renderBets();
+          pushChat("assistant", "Removed the tracked bet.", "system");
+          render();
         });
       });
+    }
+
+    function syncDraftInputs() {
+      DOM.composerText.value = state.draft.note || "";
+      DOM.betMarket.value = state.market || "";
+      DOM.betStatus.value = state.draftStatus || "draft";
+      DOM.bankroll.value = state.bankroll;
+      DOM.unitSize.value = state.unitSize;
+    }
+
+    function pullDraftInputs() {
+      state.market = DOM.betMarket.value;
+      state.draftStatus = DOM.betStatus.value;
+      state.bankroll = Number(DOM.bankroll.value || 0);
+      state.unitSize = Number(DOM.unitSize.value || 0);
+      state.draft.note = DOM.composerText.value.trim();
+    }
+
+    function updateHeader() {
+      DOM.micState.textContent = state.listening ? "listening" : "idle";
+      DOM.openCount.textContent = state.bets.filter((bet) => ["draft", "open", "pending", "held"].includes(bet.status)).length;
+      DOM.exposureTotal.textContent = money(state.bets.filter((bet) => ["draft", "open", "pending", "held"].includes(bet.status)).reduce((sum, bet) => sum + Number(bet.stake || 0), 0));
+      DOM.statusTitle.textContent = state.listening ? "Listening" : "Ready";
+      DOM.draftState.textContent = state.draft.selection ? "Draft ready" : "Idle";
+      DOM.voicePanel.classList.toggle("listening", state.listening);
+      DOM.listenBtn.disabled = state.listening;
+      DOM.stopBtn.disabled = !state.listening;
+      DOM.voiceMeterFill.style.width = state.listening ? "88%" : "20%";
+      DOM.liveHint.textContent = state.liveText || "No transcript yet.";
     }
 
     function render() {
       pullDraftInputs();
-      renderTranscript();
+      const summary = summarize(state.liveText || getLatestTranscript());
+      renderChat();
       renderBets();
-      applySignals();
-      DOM.voicePanel.classList.toggle("listening", !!state.listening);
-      DOM.startBtn.disabled = state.listening;
-      DOM.stopBtn.disabled = !state.listening;
-      DOM.voiceMeterFill.style.width = state.listening ? "88%" : "20%";
+      updateHeader();
       saveState();
     }
 
-    function scheduleRender() {
-      window.clearTimeout(renderTimer);
-      renderTimer = window.setTimeout(render, 80);
+    function getLatestTranscript() {
+      return state.transcript[0]?.text || "";
     }
 
-    function initRecognition() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        state.listeningSupported = false;
-        DOM.startBtn.disabled = true;
-        DOM.startBtn.title = "Speech recognition is not supported in this browser.";
-        return null;
+    function draftLatest() {
+      const text = state.liveText || getLatestTranscript() || DOM.composerText.value.trim();
+      if (!text) {
+        pushChat("assistant", "I need a call note or transcript before I can draft a bet.", "system");
+        render();
+        return;
       }
+      state.draft = draftFromText(text);
+      DOM.betMarket.value = state.market || state.draft.category === "live" ? "live" : "";
+      DOM.composerText.value = state.draft.note;
+      state.draftStatus = "draft";
+      pushChat("assistant", `Drafted a bet from the latest transcript:\n${state.draft.selection || "Selection not fully specified"} ${state.draft.odds ? `at ${state.draft.odds}` : ""}.`, "assistant");
+      render();
+    }
 
-      state.listeningSupported = true;
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = "en-US";
+    function addNote() {
+      const text = DOM.composerText.value.trim();
+      if (!text) return;
+      appendTranscript(text, "note");
+      DOM.composerText.value = "";
+      render();
+    }
 
-      recognition.onstart = () => {
-        state.listening = true;
-        DOM.micState.textContent = "listening";
-        scheduleRender();
+    function sendMessage() {
+      const text = DOM.composerText.value.trim();
+      if (!text) return;
+      appendTranscript(text, "note");
+      const analysis = detectSignals(text);
+      pushChat(
+        "assistant",
+        `Quick read:\n- ${analysis.notes[0]}\n- ${analysis.flags[0]}\n- ${analysis.next[0]}`,
+        "assistant"
+      );
+      DOM.composerText.value = "";
+      render();
+    }
+
+    function saveBet() {
+      const latest = state.liveText || getLatestTranscript() || DOM.composerText.value.trim();
+      if (!state.draft.selection && latest) state.draft = draftFromText(latest);
+      const bet = {
+        id: ++betId,
+        event: state.draft.event || "Untitled event",
+        market: state.market || state.draft.category || "auto",
+        selection: state.draft.selection || "Not set",
+        odds: state.draft.odds || "",
+        stake: Number(state.draft.stake || state.unitSize || 0),
+        book: state.draft.book || "",
+        status: state.draftStatus || "draft",
+        category: state.draft.category || "pre",
+        note: state.draft.note || latest || "",
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
+      state.bets.unshift(bet);
+      pushChat("assistant", `Tracked bet: ${bet.event} | ${bet.selection} ${bet.odds ? `(${bet.odds})` : ""}.`, "assistant");
+      pushChat("assistant", `Strategy: keep stake sizing inside ${money(state.unitSize)} units and verify the latest line before entry.`, "system");
+      state.draftStatus = "open";
+      render();
+    }
 
-      recognition.onend = () => {
-        state.listening = false;
-        state.interimText = "";
-        scheduleRender();
-      };
+    function clearAll() {
+      state.chat = [];
+      state.transcript = [];
+      state.liveText = "";
+      state.interimText = "";
+      pushChat("assistant", "Chat cleared. Start a new call note or hit Listen.", "system");
+      render();
+    }
 
-      recognition.onerror = (event) => {
-        state.listening = false;
-        state.interimText = "";
-        appendTranscript(`Speech recognition error: ${event.error}`, null, "system");
-        scheduleRender();
-      };
+    function resetDraft() {
+      state.draft = clone(DEFAULT_STATE.draft);
+      state.market = "";
+      state.draftStatus = "draft";
+      DOM.betMarket.value = "";
+      DOM.betStatus.value = "draft";
+      DOM.composerText.value = "";
+      pushChat("assistant", "Draft reset.", "system");
+      render();
+    }
 
-      recognition.onresult = (event) => {
-        let interim = "";
-        for (let i = event.resultIndex; i < event.results.length; i += 1) {
-          const result = event.results[i];
-          const text = result[0].transcript.trim();
-          if (result.isFinal) {
-            appendTranscript(text, result[0].confidence || null, "speech");
-          } else {
-            interim += `${text} `;
-          }
-        }
-        state.interimText = interim.trim();
-        if (state.interimText) {
-          state.liveText = state.interimText;
-        }
-        scheduleRender();
-      };
-
-      return recognition;
+    function useLatest() {
+      const text = state.liveText || getLatestTranscript();
+      if (!text) {
+        pushChat("assistant", "Nothing to use yet. Listen to the call or paste a note first.", "system");
+        render();
+        return;
+      }
+      state.draft.note = text;
+      DOM.composerText.value = text;
+      draftLatest();
     }
 
     function startListening() {
-      if (!recognition) initRecognition();
-      if (!recognition) return;
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        pushChat("assistant", "This browser does not support speech recognition. Paste the call text instead.", "system");
+        render();
+        return;
+      }
+      if (!recognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        recognition.onstart = () => {
+          state.listening = true;
+          pushChat("assistant", "Listening for the call.", "system");
+          render();
+        };
+
+        recognition.onend = () => {
+          state.listening = false;
+          state.interimText = "";
+          render();
+        };
+
+        recognition.onerror = (event) => {
+          state.listening = false;
+          pushChat("assistant", `Speech recognition error: ${event.error}`, "system");
+          render();
+        };
+
+        recognition.onresult = (event) => {
+          let interim = "";
+          for (let i = event.resultIndex; i < event.results.length; i += 1) {
+            const result = event.results[i];
+            const text = result[0].transcript.trim();
+            if (result.isFinal) {
+              appendTranscript(text, "speech", result[0].confidence || null);
+            } else {
+              interim += `${text} `;
+            }
+          }
+          state.interimText = interim.trim();
+          state.liveText = state.interimText || state.liveText;
+          DOM.liveHint.textContent = state.interimText || state.liveText || "Listening...";
+          render();
+        };
+      }
+
       try {
         recognition.start();
       } catch {
@@ -1307,140 +1027,79 @@
       recognition.stop();
       state.listening = false;
       state.interimText = "";
-      scheduleRender();
-    }
-
-    function clearTranscript() {
-      state.transcript = [];
-      state.liveText = "";
-      state.interimText = "";
-      scheduleRender();
-    }
-
-    function addManualNote() {
-      const note = DOM.manualTranscript.value.trim();
-      if (!note) return;
-      appendTranscript(note, null, "note");
-      DOM.manualTranscript.value = "";
-      DOM.manualTranscript.focus();
-    }
-
-    function useLatestTranscript() {
-      const latest = state.liveText || state.transcript[0]?.text || "";
-      if (!latest) return;
-      state.draft = draftFromText(latest);
-      state.draft.note = latest;
-      syncDraftInputs();
-      DOM.betDraftStatus.textContent = "Drafted from latest transcript";
-      render();
-    }
-
-    function resetDraft() {
-      state.draft = clone(DEFAULT_STATE.draft);
-      syncDraftInputs();
-      DOM.betDraftStatus.textContent = "Reset";
       render();
     }
 
     function attach() {
       DOM.appRoot = document.getElementById("appRoot");
       DOM.voicePanel = document.getElementById("voicePanel");
+      DOM.messages = document.getElementById("messages");
+      DOM.bets = document.getElementById("bets");
+      DOM.listenBtn = document.getElementById("listenBtn");
+      DOM.stopBtn = document.getElementById("stopBtn");
+      DOM.sendBtn = document.getElementById("sendBtn");
+      DOM.noteBtn = document.getElementById("noteBtn");
+      DOM.draftBtn = document.getElementById("draftBtn");
+      DOM.clearBtn = document.getElementById("clearBtn");
+      DOM.latestBtn = document.getElementById("latestBtn");
+      DOM.addBetBtn = document.getElementById("addBetBtn");
+      DOM.resetDraftBtn = document.getElementById("resetDraftBtn");
+      DOM.composerText = document.getElementById("composerText");
+      DOM.bankroll = document.getElementById("bankroll");
+      DOM.unitSize = document.getElementById("unitSize");
+      DOM.betStatus = document.getElementById("betStatusFilter");
+      DOM.betMarket = document.getElementById("betMarket");
       DOM.micState = document.getElementById("micState");
       DOM.openCount = document.getElementById("openCount");
       DOM.exposureTotal = document.getElementById("exposureTotal");
-      DOM.startBtn = document.getElementById("startBtn");
-      DOM.stopBtn = document.getElementById("stopBtn");
-      DOM.clearTranscriptBtn = document.getElementById("clearTranscriptBtn");
-      DOM.bankroll = document.getElementById("bankroll");
-      DOM.unitSize = document.getElementById("unitSize");
-      DOM.manualTranscript = document.getElementById("manualTranscript");
-      DOM.addNoteBtn = document.getElementById("addNoteBtn");
-      DOM.draftBtn = document.getElementById("draftBtn");
-      DOM.useLatestBtn = document.getElementById("useLatestBtn");
-      DOM.betEvent = document.getElementById("betEvent");
-      DOM.betMarket = document.getElementById("betMarket");
-      DOM.betSelection = document.getElementById("betSelection");
-      DOM.betOdds = document.getElementById("betOdds");
-      DOM.betStake = document.getElementById("betStake");
-      DOM.betBook = document.getElementById("betBook");
-      DOM.betStatus = document.getElementById("betStatus");
-      DOM.betCategory = document.getElementById("betCategory");
-      DOM.betNote = document.getElementById("betNote");
-      DOM.saveBetBtn = document.getElementById("saveBetBtn");
-      DOM.resetDraftBtn = document.getElementById("resetDraftBtn");
+      DOM.statusTitle = document.getElementById("statusTitle");
+      DOM.draftState = document.getElementById("draftState");
+      DOM.signalScore = document.getElementById("signalScore");
+      DOM.confidenceScore = document.getElementById("confidenceScore");
       DOM.voiceMeterFill = document.getElementById("voiceMeter");
-      DOM.voiceTags = document.getElementById("voiceTags");
-      DOM.transcriptList = document.getElementById("transcriptList");
-      DOM.betsList = document.getElementById("betsList");
-      DOM.draftConfidence = document.getElementById("draftConfidence");
-      DOM.draftQuality = document.getElementById("draftQuality");
-      DOM.riskCount = document.getElementById("riskCount");
-      DOM.lineCount = document.getElementById("lineCount");
-      DOM.riskFlags = document.getElementById("riskFlags");
-      DOM.lineNotes = document.getElementById("lineNotes");
-      DOM.guardrails = document.getElementById("guardrails");
-      DOM.nextActions = document.getElementById("nextActions");
-      DOM.betDraftStatus = document.getElementById("betDraftStatus");
+      DOM.liveHint = document.getElementById("liveHint");
+      DOM.rateHint = document.getElementById("rateHint");
 
-      Object.values(DOM).forEach((el) => {
-        if (!el || !el.tagName) return;
-        if (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)) {
-          el.addEventListener("input", scheduleRender);
-          el.addEventListener("change", scheduleRender);
+      DOM.listenBtn.addEventListener("click", startListening);
+      DOM.stopBtn.addEventListener("click", stopListening);
+      DOM.sendBtn.addEventListener("click", sendMessage);
+      DOM.noteBtn.addEventListener("click", addNote);
+      DOM.draftBtn.addEventListener("click", draftLatest);
+      DOM.clearBtn.addEventListener("click", clearAll);
+      DOM.latestBtn.addEventListener("click", useLatest);
+      DOM.addBetBtn.addEventListener("click", saveBet);
+      DOM.resetDraftBtn.addEventListener("click", resetDraft);
+
+      DOM.composerText.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          sendMessage();
         }
       });
 
-      DOM.startBtn.addEventListener("click", startListening);
-      DOM.stopBtn.addEventListener("click", stopListening);
-      DOM.clearTranscriptBtn.addEventListener("click", clearTranscript);
-      DOM.addNoteBtn.addEventListener("click", addManualNote);
-      DOM.draftBtn.addEventListener("click", useLatestTranscript);
-      DOM.useLatestBtn.addEventListener("click", useLatestTranscript);
-      DOM.saveBetBtn.addEventListener("click", createBetFromDraft);
-      DOM.resetDraftBtn.addEventListener("click", resetDraft);
-
-      DOM.bankroll.addEventListener("change", () => {
-        state.bankroll = Number(DOM.bankroll.value || 0);
-        scheduleRender();
-      });
-      DOM.unitSize.addEventListener("change", () => {
-        state.unitSize = Number(DOM.unitSize.value || 0);
-        scheduleRender();
+      [DOM.bankroll, DOM.unitSize, DOM.betStatus, DOM.betMarket].forEach((el) => {
+        el.addEventListener("change", () => {
+          render();
+        });
       });
 
-      const draftInputs = [
-        DOM.betEvent, DOM.betMarket, DOM.betSelection, DOM.betOdds,
-        DOM.betStake, DOM.betBook, DOM.betStatus, DOM.betCategory, DOM.betNote,
-      ];
-      draftInputs.forEach((el) => el.addEventListener("input", () => {
-        DOM.betDraftStatus.textContent = "Editing";
-        scheduleRender();
-      }));
-
-      DOM.manualTranscript.addEventListener("input", scheduleRender);
+      DOM.composerText.addEventListener("input", () => {
+        state.draft.note = DOM.composerText.value;
+        DOM.draftState.textContent = DOM.composerText.value.trim() ? "Typing" : "Idle";
+      });
     }
 
     function populate() {
       DOM.bankroll.value = state.bankroll;
       DOM.unitSize.value = state.unitSize;
-      syncDraftInputs();
-      if (state.bets.length) betId = Math.max(...state.bets.map((bet) => bet.id));
-      if (state.transcript.length) transcriptId = Math.max(...state.transcript.map((item) => item.id));
-      DOM.betDraftStatus.textContent = "Ready";
+      DOM.betStatus.value = state.draftStatus;
+      DOM.betMarket.value = state.market;
+      DOM.composerText.value = state.draft.note || "";
+      pushChat("assistant", "Use Listen to capture the call, then Draft bet to convert the latest transcript into a tracked play.", "system");
       render();
     }
 
-    function prepareStrategyDefaults() {
-      renderList(DOM.guardrails, [
-        "Set a bankroll before opening anything.",
-        "Keep stakes inside your own unit sizing.",
-        "Confirm odds, book, and market before saving a play.",
-      ]);
-    }
-
     attach();
-    initRecognition();
-    prepareStrategyDefaults();
     populate();
   </script>
 </body>
