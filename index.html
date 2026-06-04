@@ -532,7 +532,7 @@
           </div>
 
           <div class="input-wrap">
-            <textarea id="composerText" placeholder="Type a call note, or ask: what games are today, tomorrow, or on 2026-06-05?"></textarea>
+            <textarea id="composerText" placeholder="Type a call note, or ask: what games are today, tomorrow, or on 2026-06-05? last time Padres played Phillies?"></textarea>
             <div class="row">
               <button class="btn btn-secondary" id="sendBtn" type="button">Send</button>
               <button class="btn btn-secondary" id="noteBtn" type="button">Add note</button>
@@ -628,11 +628,47 @@
       { label: "College Basketball", sport: "basketball", league: "mens-college-basketball" },
     ];
 
+    const MLB_LEAGUE = SCOREBOARD_LEAGUES[0];
+    const MLB_TEAM_INDEX = [
+      { id: "29", displayName: "Arizona Diamondbacks", shortDisplayName: "Diamondbacks", abbreviation: "ARI", aliases: ["arizona diamondbacks", "diamondbacks", "dbacks", "ari"] },
+      { id: "11", displayName: "Athletics", shortDisplayName: "Athletics", abbreviation: "ATH", aliases: ["athletics", "oakland athletics", "ath", "a's"] },
+      { id: "15", displayName: "Atlanta Braves", shortDisplayName: "Braves", abbreviation: "ATL", aliases: ["atlanta braves", "braves", "atl"] },
+      { id: "1", displayName: "Baltimore Orioles", shortDisplayName: "Orioles", abbreviation: "BAL", aliases: ["baltimore orioles", "orioles", "bal"] },
+      { id: "2", displayName: "Boston Red Sox", shortDisplayName: "Red Sox", abbreviation: "BOS", aliases: ["boston red sox", "red sox", "bos"] },
+      { id: "16", displayName: "Chicago Cubs", shortDisplayName: "Cubs", abbreviation: "CHC", aliases: ["chicago cubs", "cubs", "chc"] },
+      { id: "4", displayName: "Chicago White Sox", shortDisplayName: "White Sox", abbreviation: "CHW", aliases: ["chicago white sox", "white sox", "chw"] },
+      { id: "17", displayName: "Cincinnati Reds", shortDisplayName: "Reds", abbreviation: "CIN", aliases: ["cincinnati reds", "reds", "cin"] },
+      { id: "5", displayName: "Cleveland Guardians", shortDisplayName: "Guardians", abbreviation: "CLE", aliases: ["cleveland guardians", "guardians", "cle"] },
+      { id: "27", displayName: "Colorado Rockies", shortDisplayName: "Rockies", abbreviation: "COL", aliases: ["colorado rockies", "rockies", "col"] },
+      { id: "6", displayName: "Detroit Tigers", shortDisplayName: "Tigers", abbreviation: "DET", aliases: ["detroit tigers", "tigers", "det"] },
+      { id: "18", displayName: "Houston Astros", shortDisplayName: "Astros", abbreviation: "HOU", aliases: ["houston astros", "astros", "hou"] },
+      { id: "7", displayName: "Kansas City Royals", shortDisplayName: "Royals", abbreviation: "KC", aliases: ["kansas city royals", "royals", "kc"] },
+      { id: "3", displayName: "Los Angeles Angels", shortDisplayName: "Angels", abbreviation: "LAA", aliases: ["los angeles angels", "angels", "laa", "anaheim angels"] },
+      { id: "19", displayName: "Los Angeles Dodgers", shortDisplayName: "Dodgers", abbreviation: "LAD", aliases: ["los angeles dodgers", "dodgers", "lad"] },
+      { id: "28", displayName: "Miami Marlins", shortDisplayName: "Marlins", abbreviation: "MIA", aliases: ["miami marlins", "marlins", "mia"] },
+      { id: "8", displayName: "Milwaukee Brewers", shortDisplayName: "Brewers", abbreviation: "MIL", aliases: ["milwaukee brewers", "brewers", "mil"] },
+      { id: "9", displayName: "Minnesota Twins", shortDisplayName: "Twins", abbreviation: "MIN", aliases: ["minnesota twins", "twins", "min"] },
+      { id: "21", displayName: "New York Mets", shortDisplayName: "Mets", abbreviation: "NYM", aliases: ["new york mets", "mets", "nym"] },
+      { id: "10", displayName: "New York Yankees", shortDisplayName: "Yankees", abbreviation: "NYY", aliases: ["new york yankees", "yankees", "nyy"] },
+      { id: "22", displayName: "Philadelphia Phillies", shortDisplayName: "Phillies", abbreviation: "PHI", aliases: ["philadelphia phillies", "phillies", "phi"] },
+      { id: "23", displayName: "Pittsburgh Pirates", shortDisplayName: "Pirates", abbreviation: "PIT", aliases: ["pittsburgh pirates", "pirates", "pit"] },
+      { id: "25", displayName: "San Diego Padres", shortDisplayName: "Padres", abbreviation: "SD", aliases: ["san diego padres", "padres", "sd"] },
+      { id: "26", displayName: "San Francisco Giants", shortDisplayName: "Giants", abbreviation: "SF", aliases: ["san francisco giants", "giants", "sf"] },
+      { id: "12", displayName: "Seattle Mariners", shortDisplayName: "Mariners", abbreviation: "SEA", aliases: ["seattle mariners", "mariners", "sea"] },
+      { id: "24", displayName: "St. Louis Cardinals", shortDisplayName: "Cardinals", abbreviation: "STL", aliases: ["st louis cardinals", "st. louis cardinals", "cardinals", "stl"] },
+      { id: "30", displayName: "Tampa Bay Rays", shortDisplayName: "Rays", abbreviation: "TB", aliases: ["tampa bay rays", "rays", "tb"] },
+      { id: "13", displayName: "Texas Rangers", shortDisplayName: "Rangers", abbreviation: "TEX", aliases: ["texas rangers", "rangers", "tex"] },
+      { id: "14", displayName: "Toronto Blue Jays", shortDisplayName: "Blue Jays", abbreviation: "TOR", aliases: ["toronto blue jays", "blue jays", "tor"] },
+      { id: "20", displayName: "Washington Nationals", shortDisplayName: "Nationals", abbreviation: "WSH", aliases: ["washington nationals", "nationals", "wsh"] },
+    ];
+
     const DOM = {};
     let state = loadState();
     let recognition = null;
     let transcriptId = 0;
     let betId = 0;
+    let teamIndexPromise = null;
+    let teamIndex = null;
 
     function clone(value) {
       return JSON.parse(JSON.stringify(value));
@@ -801,6 +837,10 @@
       return date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" });
     }
 
+    function normalizeToken(value) {
+      return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+    }
+
     function addDays(date, days) {
       const next = new Date(date);
       next.setDate(next.getDate() + days);
@@ -873,6 +913,220 @@
           odds: competition.odds?.[0]?.moneyline ? `${competition.odds[0].moneyline.away?.close?.odds ?? ""}/${competition.odds[0].moneyline.home?.close?.odds ?? ""}` : "",
         };
       });
+    }
+
+    async function fetchLeagueTeams(league) {
+      const url = `https://site.api.espn.com/apis/site/v2/sports/${league.sport}/${league.league}/teams`;
+      const response = await fetch(url, { mode: "cors" });
+      if (!response.ok) {
+        throw new Error(`${league.label} teams returned HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      const teams = data?.sports?.[0]?.leagues?.[0]?.teams || [];
+      return teams.map((entry) => ({
+        league: league,
+        ...entry.team,
+      }));
+    }
+
+    function teamAliases(team) {
+      const aliases = [
+        team.displayName,
+        team.shortDisplayName,
+        team.name,
+        team.abbreviation,
+        `${team.location} ${team.shortDisplayName}`,
+        `${team.location} ${team.name}`,
+      ].filter(Boolean);
+      return [...new Set(aliases.map(normalizeToken).filter((alias) => alias.length > 1))];
+    }
+
+    async function ensureTeamIndex() {
+      if (teamIndex) return teamIndex;
+      if (!teamIndexPromise) {
+        teamIndexPromise = Promise.allSettled(SCOREBOARD_LEAGUES.map((league) => fetchLeagueTeams(league))).then((results) => {
+          const teams = [];
+          results.forEach((result) => {
+            if (result.status === "fulfilled") {
+              result.value.forEach((team) => {
+                teams.push({
+                  ...team,
+                  aliases: teamAliases(team),
+                });
+              });
+            }
+          });
+          teamIndex = teams;
+          return teams;
+        });
+      }
+      return teamIndexPromise;
+    }
+
+    function findTeamsInText(text) {
+      const normalized = ` ${normalizeToken(text)} `;
+      const matches = [];
+      MLB_TEAM_INDEX.forEach((team) => {
+        const alias = team.aliases
+          .slice()
+          .sort((a, b) => b.length - a.length)
+          .find((item) => normalized.includes(` ${item} `));
+        if (alias) {
+          matches.push({ team, alias });
+        }
+      });
+      matches.sort((a, b) => b.alias.length - a.alias.length);
+      const unique = [];
+      const seen = new Set();
+      matches.forEach((match) => {
+        if (!seen.has(match.team.id)) {
+          seen.add(match.team.id);
+          unique.push({
+            ...match.team,
+            league: MLB_LEAGUE,
+          });
+        }
+      });
+      return unique.slice(0, 4);
+    }
+
+    function isHistoricalMatchupRequest(text) {
+      const lower = String(text || "").toLowerCase();
+      return /(\bhead to head\b|\bh2h\b|\blast time\b|\bprevious\b|\bpast matchup\b|\bmatchup stats\b|\bwho won last time\b|\bstats of\b|\bhow did\b.*\bagainst\b|\blast matchup\b|\bprevious matchup\b)/.test(lower);
+    }
+
+    function getBoxscoreStat(team, sectionName, statName) {
+      const section = team?.statistics?.find((entry) => normalizeToken(entry.name) === normalizeToken(sectionName));
+      const stat = section?.stats?.find((entry) => normalizeToken(entry.name) === normalizeToken(statName) || normalizeToken(entry.abbreviation) === normalizeToken(statName));
+      return stat?.displayValue ?? stat?.value ?? "";
+    }
+
+    function formatBoxscoreLine(team, sectionName) {
+      const runs = getBoxscoreStat(team, sectionName, "runs");
+      const hits = getBoxscoreStat(team, sectionName, "hits");
+      const errors = getBoxscoreStat(team, sectionName, "errors");
+      const homeRuns = getBoxscoreStat(team, sectionName, "homeRuns");
+      const strikeouts = getBoxscoreStat(team, sectionName, "strikeouts");
+      const parts = [];
+      if (runs !== "") parts.push(`R ${runs}`);
+      if (hits !== "") parts.push(`H ${hits}`);
+      if (errors !== "") parts.push(`E ${errors}`);
+      if (homeRuns !== "") parts.push(`HR ${homeRuns}`);
+      if (strikeouts !== "") parts.push(`K ${strikeouts}`);
+      return parts.join(" / ");
+    }
+
+    function displayScore(value) {
+      if (value == null || value === "") return "";
+      if (typeof value === "object") {
+        if (value.displayValue != null) return String(value.displayValue);
+        if (value.value != null) return String(value.value);
+      }
+      return String(value);
+    }
+
+    async function fetchMatchupBoxscore(eventId, league) {
+      const url = `https://site.api.espn.com/apis/site/v2/sports/${league.sport}/${league.league}/summary?event=${eventId}`;
+      const response = await fetch(url, { mode: "cors" });
+      if (!response.ok) {
+        throw new Error(`Matchup summary returned HTTP ${response.status}`);
+      }
+      return response.json();
+    }
+
+    async function answerHistoricalMatchup(text) {
+      const teams = findTeamsInText(text);
+      if (teams.length < 2) {
+        pushChat("assistant", "I need two team names for a past matchup. Try: 'last time Padres played Phillies' or 'head to head Lakers vs Celtics'.", "system");
+        render();
+        return;
+      }
+
+      const [first, second] = teams;
+      if (first.league?.league !== second.league?.league) {
+        pushChat("assistant", "I found teams from different leagues. Ask with two teams from the same league so I can pull the matchup history.", "system");
+        render();
+        return;
+      }
+
+      state.statusLine = `Looking up past matchups: ${first.displayName} vs ${second.displayName}.`;
+      render();
+
+      try {
+        const [scheduleA, scheduleB] = await Promise.all([
+          fetch(`https://site.api.espn.com/apis/site/v2/sports/${first.league.sport}/${first.league.league}/teams/${first.id}/schedule`, { mode: "cors" }).then((res) => {
+            if (!res.ok) throw new Error(`Team schedule returned HTTP ${res.status}`);
+            return res.json();
+          }),
+          fetch(`https://site.api.espn.com/apis/site/v2/sports/${second.league.sport}/${second.league.league}/teams/${second.id}/schedule`, { mode: "cors" }).then((res) => {
+            if (!res.ok) throw new Error(`Team schedule returned HTTP ${res.status}`);
+            return res.json();
+          }),
+        ]);
+
+        const gamesA = scheduleA?.events || [];
+        const gamesB = scheduleB?.events || [];
+        const idsB = new Set(gamesB.map((event) => event.id));
+        const headToHead = gamesA
+          .filter((event) => idsB.has(event.id))
+          .map((event) => {
+            const competition = event.competitions?.[0] || {};
+            const competitors = competition.competitors || [];
+            const firstSide = competitors.find((entry) => String(entry.team?.id) === String(first.id)) || {};
+            const secondSide = competitors.find((entry) => String(entry.team?.id) === String(second.id)) || {};
+            return {
+              id: event.id,
+              name: event.shortName || event.name || `${first.shortDisplayName} vs ${second.shortDisplayName}`,
+              date: event.date || competition.date || "",
+              status: competition.status?.type?.shortDetail || competition.status?.type?.description || "Scheduled",
+              venue: competition.venue?.fullName || "",
+              firstScore: displayScore(firstSide.score),
+              secondScore: displayScore(secondSide.score),
+              isFinal: competition.status?.type?.state === "post",
+            };
+          })
+          .filter((game) => game.isFinal)
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        if (!headToHead.length) {
+          pushChat("assistant", `I could not find a completed past matchup between ${first.shortDisplayName} and ${second.shortDisplayName}.`, "system");
+          state.statusLine = "";
+          render();
+          return;
+        }
+
+        const latest = headToHead[0];
+        let summaryText = `Past matchup history: ${first.shortDisplayName} vs ${second.shortDisplayName}\n`;
+        summaryText += `Found ${headToHead.length} completed meeting(s).\n\n`;
+        summaryText += `Most recent: ${latest.name}\n`;
+        summaryText += `${new Date(latest.date).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })} - ${latest.firstScore} to ${latest.secondScore}${latest.venue ? ` - ${latest.venue}` : ""}\n`;
+
+        try {
+          const boxscore = await fetchMatchupBoxscore(latest.id, first.league);
+          const teams = boxscore?.boxscore?.teams || [];
+          const firstBox = teams.find((team) => String(team.team?.id) === String(first.id));
+          const secondBox = teams.find((team) => String(team.team?.id) === String(second.id));
+          if (firstBox && secondBox) {
+            summaryText += `\nBox score:`;
+            summaryText += `\n- ${first.shortDisplayName}: ${formatBoxscoreLine(firstBox, "Batting")} | ${formatBoxscoreLine(firstBox, "Pitching")} | ${formatBoxscoreLine(firstBox, "Fielding")}`;
+            summaryText += `\n- ${second.shortDisplayName}: ${formatBoxscoreLine(secondBox, "Batting")} | ${formatBoxscoreLine(secondBox, "Pitching")} | ${formatBoxscoreLine(secondBox, "Fielding")}`;
+          }
+        } catch {}
+
+        summaryText += `\n\nRecent meetings:`;
+        headToHead.slice(0, 3).forEach((game) => {
+          const played = game.date ? new Date(game.date).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) : "Unknown date";
+          summaryText += `\n- ${played}: ${game.firstScore} to ${game.secondScore}${game.venue ? ` at ${game.venue}` : ""}`;
+        });
+
+        pushChat("assistant", summaryText, "assistant");
+        state.statusLine = "";
+      } catch (error) {
+        state.statusLine = "";
+        pushChat("assistant", `Could not load matchup history: ${error.message}`, "system");
+      }
+
+      render();
     }
 
     function formatScheduleReply(date, leagueResults) {
@@ -1147,6 +1401,10 @@
       if (!text) return;
       appendTranscript(text, "note");
       DOM.composerText.value = "";
+      if (isHistoricalMatchupRequest(text)) {
+        await answerHistoricalMatchup(text);
+        return;
+      }
       if (isScheduleRequest(text)) {
         await answerScheduleQuery(text);
         return;
