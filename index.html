@@ -748,6 +748,24 @@
       return draft;
     }
 
+    function speechErrorCopy(error) {
+      switch (error) {
+        case "no-speech":
+          return "No speech was detected. Try again with the mic closer to the call audio.";
+        case "network":
+          return "Speech recognition could not reach the service. Check browser connectivity or use typed notes.";
+        case "not-allowed":
+        case "service-not-allowed":
+          return "Microphone access is blocked. Allow mic permission and try again.";
+        case "audio-capture":
+          return "No microphone input is available. Check the selected input device.";
+        case "aborted":
+          return "Listening stopped.";
+        default:
+          return `Speech recognition error: ${error || "unknown"}`;
+      }
+    }
+
     function pushChat(role, text, kind = "") {
       state.chat.unshift({
         id: Date.now() + Math.random(),
@@ -812,7 +830,7 @@
         role: "assistant",
         kind: "system",
         time: "",
-        text: "Drop in a call note or start listening. I’ll turn the transcript into a bet draft and strategy notes in the same chat.",
+        text: "Drop in a call note or start listening. I will turn the transcript into a bet draft and strategy notes in the same chat.",
       }];
 
       DOM.messages.innerHTML = items.map((item) => `
@@ -1058,7 +1076,14 @@
 
         recognition.onerror = (event) => {
           state.listening = false;
-          pushChat("assistant", `Speech recognition error: ${event.error}`, "system");
+          const message = speechErrorCopy(event.error);
+          state.liveText = "";
+          state.interimText = "";
+          DOM.liveHint.textContent = message;
+          pushChat("assistant", message, "system");
+          if (recognition && event.error !== "aborted") {
+            try { recognition.abort(); } catch {}
+          }
           render();
         };
 
