@@ -428,6 +428,42 @@
       padding: 12px 14px;
     }
 
+    .bets-fold {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.03);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .bets-fold > summary {
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+    }
+
+    .bets-fold > summary::-webkit-details-marker { display: none; }
+
+    .bets-fold .summary-title {
+      display: grid;
+      gap: 3px;
+    }
+
+    .bets-fold .summary-title strong {
+      font-size: 15px;
+    }
+
+    .bets-fold .summary-title span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .listening .meter > div {
       animation: meterPulse 1.1s ease-in-out infinite;
     }
@@ -545,15 +581,16 @@
           </div>
         </section>
 
-        <section class="chat-panel" style="min-height:auto;">
-          <div class="chat-head">
-            <div class="meta">
+        <details class="bets-fold">
+          <summary>
+            <div class="summary-title">
               <strong>Tracked bets</strong>
-              <span>Keep the open card list visible without a second dashboard.</span>
+              <span>Collapsed by default so the page stays chat-first.</span>
             </div>
-          </div>
+            <span class="pill">Open <strong id="betCountFold">0</strong></span>
+          </summary>
           <div class="messages" id="bets"></div>
-        </section>
+        </details>
       </section>
     </main>
 
@@ -725,17 +762,29 @@
 
     function summarize(text) {
       const analysis = detectSignals(text);
+      const hasContext = Boolean(
+        text ||
+        state.transcript.length ||
+        state.draft.note ||
+        state.draft.selection ||
+        state.draft.odds ||
+        state.draft.event
+      );
       const signalScore = clamp(
-        (text ? 25 : 0) +
-        (state.transcript.length ? 20 : 0) +
-        (state.draft.selection ? 15 : 0) +
-        (state.draft.odds ? 10 : 0) +
-        (state.draft.stake ? 10 : 0) +
-        (state.draft.event ? 10 : 0),
+        hasContext
+          ? (
+            (text ? 25 : 0) +
+            (state.transcript.length ? 20 : 0) +
+            (state.draft.selection ? 15 : 0) +
+            (state.draft.odds ? 10 : 0) +
+            (state.draft.stake ? 10 : 0) +
+            (state.draft.event ? 10 : 0)
+          )
+          : 0,
         0,
         100
       );
-      const confidence = clamp(20 + signalScore * 0.8, 0, 100);
+      const confidence = hasContext ? clamp(20 + signalScore * 0.8, 0, 100) : 0;
       DOM.signalScore.textContent = Math.round(signalScore);
       DOM.confidenceScore.textContent = `${Math.round(confidence)}%`;
       return { analysis, signalScore, confidence };
@@ -850,6 +899,7 @@
     function updateHeader() {
       DOM.micState.textContent = state.listening ? "listening" : "idle";
       DOM.openCount.textContent = state.bets.filter((bet) => ["draft", "open", "pending", "held"].includes(bet.status)).length;
+      DOM.betCountFold.textContent = state.bets.length;
       DOM.exposureTotal.textContent = money(state.bets.filter((bet) => ["draft", "open", "pending", "held"].includes(bet.status)).reduce((sum, bet) => sum + Number(bet.stake || 0), 0));
       DOM.statusTitle.textContent = state.listening ? "Listening" : "Ready";
       DOM.draftState.textContent = state.draft.selection ? "Draft ready" : "Idle";
@@ -881,7 +931,7 @@
         return;
       }
       state.draft = draftFromText(text);
-      DOM.betMarket.value = state.market || state.draft.category === "live" ? "live" : "";
+      DOM.betMarket.value = state.market || (state.draft.category === "live" ? "live" : "");
       DOM.composerText.value = state.draft.note;
       state.draftStatus = "draft";
       pushChat("assistant", `Drafted a bet from the latest transcript:\n${state.draft.selection || "Selection not fully specified"} ${state.draft.odds ? `at ${state.draft.odds}` : ""}.`, "assistant");
@@ -1056,6 +1106,7 @@
       DOM.draftState = document.getElementById("draftState");
       DOM.signalScore = document.getElementById("signalScore");
       DOM.confidenceScore = document.getElementById("confidenceScore");
+      DOM.betCountFold = document.getElementById("betCountFold");
       DOM.voiceMeterFill = document.getElementById("voiceMeter");
       DOM.liveHint = document.getElementById("liveHint");
       DOM.rateHint = document.getElementById("rateHint");
