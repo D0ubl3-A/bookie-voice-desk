@@ -1347,7 +1347,7 @@
     }
 
     function renderChat() {
-      const items = state.chat.length ? state.chat : [{
+      const items = state.chat.length ? state.chat.slice().reverse() : [{
         id: "welcome",
         role: "assistant",
         kind: "system",
