@@ -879,6 +879,11 @@
       return /(\bcurrent stats\b|\blive stats\b|\breal time\b|\brealtime\b|\bboxscore\b|\bbox score\b|\bgame stats\b|\bstat line\b|\bscore update\b|\bwhat's the score\b|\bwhats the score\b|\bhow is the game\b|\bwho's winning\b|\bwhos winning\b|\bin[- ]game\b|\bcurrent game\b|\bpast game\b|\blast game\b|\bprevious game\b|\bfinal score\b|\bplayer stats\b|\bteam stats\b)/.test(lower);
     }
 
+    function isVegasLinesRequest(text) {
+      const lower = String(text || "").toLowerCase();
+      return /(\bvegas line\b|\bvegas lines\b|\blines\b|\bodds\b|\bspreads\b|\bspread\b|\bmoneyline\b|\bml\b|\bover under\b|\bo\/u\b|\btotal\b|\bbook line\b|\bclosing line\b|\bopening line\b)/.test(lower);
+    }
+
     function inferScheduleLeagues(text) {
       const lower = String(text || "").toLowerCase();
       const leagues = [];
@@ -919,10 +924,44 @@
           start: event.date || competition.date || event.startDate || "",
           status: competition.status?.type?.shortDetail || event.status?.type?.shortDetail || competition.status?.type?.description || "Scheduled",
           state: competition.status?.type?.state || event.status?.type?.state || "",
-          odds: competition.odds?.[0]?.moneyline ? `${competition.odds[0].moneyline.away?.close?.odds ?? ""}/${competition.odds[0].moneyline.home?.close?.odds ?? ""}` : "",
+          odds: competition.odds?.[0] || null,
           competition,
         };
       });
+    }
+
+    function formatVegasOdds(odds) {
+      if (!odds) return "";
+      const provider = odds.provider?.displayName || odds.provider?.name || "";
+      const parts = [];
+      if (odds.moneyline) {
+        const away = odds.moneyline.away?.close?.odds ?? "";
+        const home = odds.moneyline.home?.close?.odds ?? "";
+        if (away || home) parts.push(`ML ${away}/${home}`);
+      }
+      if (odds.pointSpread) {
+        const awayLine = odds.pointSpread.away?.close?.line ?? "";
+        const awayOdds = odds.pointSpread.away?.close?.odds ?? "";
+        const homeLine = odds.pointSpread.home?.close?.line ?? "";
+        const homeOdds = odds.pointSpread.home?.close?.odds ?? "";
+        if (awayLine || homeLine) parts.push(`RL ${awayLine}/${homeLine} (${awayOdds}/${homeOdds})`);
+      }
+      if (odds.total) {
+        const overLine = odds.total.over?.close?.line ?? "";
+        const overOdds = odds.total.over?.close?.odds ?? "";
+        const underLine = odds.total.under?.close?.line ?? "";
+        const underOdds = odds.total.under?.close?.odds ?? "";
+        if (overLine || underLine) parts.push(`Total ${overLine}/${underLine} (${overOdds}/${underOdds})`);
+      }
+      if (!parts.length && odds.details) parts.push(odds.details);
+      if (provider) parts.unshift(provider);
+      return parts.join(" | ");
+    }
+
+    function formatVegasLineEntry(game) {
+      const line = formatVegasOdds(game.odds);
+      if (!line) return "";
+      return `${game.away} at ${game.home} - ${line}`;
     }
 
     async function fetchLeagueTeams(league) {
@@ -1435,13 +1474,56 @@
         lines.push(`${entry.label}:`);
         entry.games.slice(0, 8).forEach((game) => {
           const time = game.start ? new Date(game.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : game.status;
-          lines.push(`- ${time} — ${game.away} at ${game.home}`);
+          const vegas = formatVegasLineEntry(game);
+          lines.push(`- ${time} — ${game.away} at ${game.home}${vegas ? ` | ${vegas}` : ""}`);
         });
         if (entry.games.length > 8) {
           lines.push(`- ...and ${entry.games.length - 8} more`);
         }
       });
       return lines.join("\n");
+    }
+
+    async function answerVegasLinesQuery(text) {
+      const date = parseRequestedDate(text);
+      const requestedLeagues = inferScheduleLeagues(text);
+      const leagues = requestedLeagues.length
+        ? SCOREBOARD_LEAGUES.filter((league) => requestedLeagues.includes(league.league))
+        : SCOREBOARD_LEAGUES;
+
+      state.statusLine = `Looking up Vegas lines for ${toPrettyDate(date)}.`;
+      render();
+
+      try {
+        const dateKey = toLocalDateKey(date);
+        const results = await Promise.allSettled(leagues.map((league) => fetchScheduleForLeague(league, dateKey)));
+        const lines = [`Vegas lines for ${toPrettyDate(date)}:`];
+        let found = 0;
+
+        results.forEach((result, index) => {
+          if (result.status !== "fulfilled") return;
+          const games = result.value.filter((game) => game.odds);
+          if (!games.length) return;
+          lines.push("");
+          lines.push(`${leagues[index].label}:`);
+          games.slice(0, 8).forEach((game) => {
+            lines.push(`- ${formatVegasLineEntry(game)}`);
+            found += 1;
+          });
+        });
+
+        if (!found) {
+          pushChat("assistant", `No Vegas lines were available for ${toPrettyDate(date)}.`, "system");
+        } else {
+          pushChat("assistant", lines.join("\n"), "assistant");
+        }
+        state.statusLine = "";
+      } catch (error) {
+        state.statusLine = "";
+        pushChat("assistant", `Could not load Vegas lines: ${error.message}`, "system");
+      }
+
+      render();
     }
 
     async function answerScheduleQuery(text) {
@@ -1732,6 +1814,10 @@
       if (!text) return;
       appendTranscript(text, "note");
       DOM.composerText.value = "";
+      if (isVegasLinesRequest(text)) {
+        await answerVegasLinesQuery(text);
+        return;
+      }
       if (isGameStatsRequest(text)) {
         await answerGameStatsQuery(text);
         return;
