@@ -492,7 +492,7 @@
       <div class="brand">
         <p class="eyebrow">Bookie Voice Desk</p>
         <h1>One chat window for the call, the bet, and the strategy.</h1>
-        <p class="lede">Ask naturally, get sports schedules or matchup history, and keep a live bet record without the dashboard clutter.</p>
+        <p class="lede">Ask naturally, get schedules, current game stats, past game stats, and matchup history without the dashboard clutter.</p>
       </div>
       <div class="statusrow">
         <div class="pill">Mic <strong id="micState">idle</strong></div>
@@ -507,7 +507,7 @@
           <div class="chat-head">
             <div class="meta">
               <strong>Chat</strong>
-              <span>Type naturally, paste a note, or speak. Ask for today's games, tomorrow's slate, a matchup history, or anything else.</span>
+              <span>Type naturally, paste a note, or speak. Ask for today's games, current stats, past stats, a matchup history, or anything else.</span>
             </div>
             <div class="actions">
               <button class="btn btn-primary" id="listenBtn" type="button">▶ Listen</button>
@@ -532,7 +532,7 @@
           </div>
 
           <div class="input-wrap">
-            <textarea id="composerText" placeholder="Ask anything. Try: what games are today, last time Padres played Phillies, or a general question."></textarea>
+            <textarea id="composerText" placeholder="Ask anything. Try: what games are today, current Padres stats, last time Padres played Phillies, or a general question."></textarea>
             <div class="mini">Type here and press Enter to send. Shift+Enter makes a new line.</div>
             <div class="row">
               <button class="btn btn-secondary" id="sendBtn" type="button">Send</button>
@@ -874,6 +874,11 @@
       return /(\bgame\b|\bgames\b|\bschedule\b|\bmatchup\b|\bmatchups\b|\bwho plays\b|\bwhat plays\b|\bwhat games\b|\bgames are\b|\bplay on\b|\bplay(s)?\b.*\b(today|tomorrow|tonight)\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b)/.test(lower);
     }
 
+    function isGameStatsRequest(text) {
+      const lower = String(text || "").toLowerCase();
+      return /(\bcurrent stats\b|\blive stats\b|\breal time\b|\brealtime\b|\bboxscore\b|\bbox score\b|\bgame stats\b|\bstat line\b|\bscore update\b|\bwhat's the score\b|\bwhats the score\b|\bhow is the game\b|\bwho's winning\b|\bwhos winning\b|\bin[- ]game\b|\bcurrent game\b|\bpast game\b|\blast game\b|\bprevious game\b|\bfinal score\b|\bplayer stats\b|\bteam stats\b)/.test(lower);
+    }
+
     function inferScheduleLeagues(text) {
       const lower = String(text || "").toLowerCase();
       const leagues = [];
@@ -906,13 +911,16 @@
         const away = competitors.find((entry) => entry.homeAway === "away");
         const home = competitors.find((entry) => entry.homeAway === "home");
         return {
+          id: event.id || "",
           league: league.label,
           name: event.shortName || event.name || "Game",
           away: away?.team?.shortDisplayName || away?.team?.displayName || "Away",
           home: home?.team?.shortDisplayName || home?.team?.displayName || "Home",
           start: event.date || competition.date || event.startDate || "",
           status: competition.status?.type?.shortDetail || event.status?.type?.shortDetail || competition.status?.type?.description || "Scheduled",
+          state: competition.status?.type?.state || event.status?.type?.state || "",
           odds: competition.odds?.[0]?.moneyline ? `${competition.odds[0].moneyline.away?.close?.odds ?? ""}/${competition.odds[0].moneyline.home?.close?.odds ?? ""}` : "",
+          competition,
         };
       });
     }
@@ -990,6 +998,223 @@
         }
       });
       return unique.slice(0, 4);
+    }
+
+    async function findTeamsInTextAll(text) {
+      const index = await ensureTeamIndex();
+      const normalized = ` ${normalizeToken(text)} `;
+      const matches = [];
+      index.forEach((team) => {
+        const alias = team.aliases
+          .slice()
+          .sort((a, b) => b.length - a.length)
+          .find((item) => normalized.includes(` ${item} `));
+        if (alias) {
+          matches.push({ team, alias });
+        }
+      });
+      matches.sort((a, b) => b.alias.length - a.alias.length);
+      const unique = [];
+      const seen = new Set();
+      matches.forEach((match) => {
+        if (!seen.has(match.team.id)) {
+          seen.add(match.team.id);
+          unique.push(match.team);
+        }
+      });
+      return unique.slice(0, 4);
+    }
+
+    function teamMatchesCompetitor(team, competitor) {
+      const competitorTokens = [
+        competitor?.team?.id,
+        competitor?.team?.displayName,
+        competitor?.team?.shortDisplayName,
+        competitor?.team?.name,
+        competitor?.team?.abbreviation,
+        competitor?.team?.location,
+      ].map(normalizeToken).filter(Boolean);
+      const aliases = team?.aliases || teamAliases(team);
+      return aliases.some((alias) => competitorTokens.some((value) => (
+        value === alias ||
+        value.includes(alias) ||
+        alias.includes(value)
+      )));
+    }
+
+    function eventMatchesTeams(event, teams) {
+      if (!teams.length) return true;
+      const competitors = event?.competition?.competitors || event?.competitions?.[0]?.competitors || [];
+      if (!competitors.length) return false;
+      return teams.every((team) => competitors.some((competitor) => teamMatchesCompetitor(team, competitor)));
+    }
+
+    function getEventStatus(event) {
+      const competition = event?.competition || event?.competitions?.[0] || {};
+      return competition.status?.type || event?.status?.type || {};
+    }
+
+    function getEventCompetitors(event) {
+      return event?.competition?.competitors || event?.competitions?.[0]?.competitors || [];
+    }
+
+    function getEventScoreLine(event) {
+      const competitors = getEventCompetitors(event);
+      const away = competitors.find((entry) => entry.homeAway === "away");
+      const home = competitors.find((entry) => entry.homeAway === "home");
+      return {
+        away,
+        home,
+        awayScore: away?.score ?? "",
+        homeScore: home?.score ?? "",
+      };
+    }
+
+    function buildGameStatsDates(text, mode) {
+      const base = parseRequestedDate(text);
+      const today = new Date();
+      const start = mode === "past" && Math.abs(base - today) < 24 * 60 * 60 * 1000 ? addDays(today, -1) : base;
+      const dates = [];
+      const totalDays = mode === "current" ? 1 : 7;
+      for (let offset = 0; offset < totalDays; offset += 1) {
+        dates.push(addDays(start, -offset));
+      }
+      return dates;
+    }
+
+    function formatRecentTeamGame(teamBlock, game) {
+      const teamId = String(teamBlock?.team?.id || "");
+      const homeId = String(game?.homeTeamId || "");
+      const awayId = String(game?.awayTeamId || "");
+      const isHome = teamId && teamId === homeId;
+      const teamScore = isHome ? game.homeTeamScore : game.awayTeamScore;
+      const oppScore = isHome ? game.awayTeamScore : game.homeTeamScore;
+      const side = isHome ? "vs" : "@";
+      const result = game?.gameResult === "W" ? "W" : "L";
+      return `${result} ${teamScore}-${oppScore} ${side} ${game?.opponent?.displayName || "opponent"}`;
+    }
+
+    function formatRecentForm(summary) {
+      const blocks = Array.isArray(summary?.lastFiveGames) ? summary.lastFiveGames.slice(0, 2) : [];
+      if (!blocks.length) return [];
+      const lines = ["Recent form:"];
+      blocks.forEach((block) => {
+        const games = Array.isArray(block.events) ? block.events.slice(0, 3).map((game) => formatRecentTeamGame(block, game)).join(", ") : "";
+        if (games) {
+          lines.push(`- ${block.team?.displayName || "Team"}: ${games}`);
+        }
+      });
+      return lines;
+    }
+
+    function formatGameStatsReply(mode, leagueLabel, event, summary) {
+      const competition = summary?.header?.competitions?.[0] || event?.competition || {};
+      const status = competition.status?.type || {};
+      const competitors = competition.competitors || getEventCompetitors(event);
+      const away = competitors.find((entry) => entry.homeAway === "away");
+      const home = competitors.find((entry) => entry.homeAway === "home");
+      const venue = summary?.gameInfo?.venue?.fullName || "";
+      const weather = summary?.gameInfo?.weather?.temperature != null
+        ? `${summary.gameInfo.weather.temperature}°F${summary.gameInfo.weather.gust != null ? `, gust ${summary.gameInfo.weather.gust} mph` : ""}${summary.gameInfo.weather.precipitation != null ? `, precip ${summary.gameInfo.weather.precipitation}` : ""}`
+        : "";
+      const lines = [];
+      lines.push(`${mode === "current" ? "Current" : "Past"} game stats${leagueLabel ? ` (${leagueLabel})` : ""}: ${away?.team?.shortDisplayName || "Away"} at ${home?.team?.shortDisplayName || "Home"}`);
+      lines.push(`Status: ${status.shortDetail || status.detail || "Unknown"}`);
+      lines.push(`Score: ${away?.team?.shortDisplayName || "Away"} ${away?.score ?? "?"} - ${home?.team?.shortDisplayName || "Home"} ${home?.score ?? "?"}`);
+      if (venue) lines.push(`Venue: ${venue}`);
+      if (weather) lines.push(`Weather: ${weather}`);
+      if (status.state === "in") {
+        const winprob = Array.isArray(summary?.winprobability) && summary.winprobability.length
+          ? summary.winprobability.map((entry) => `${entry.team?.shortDisplayName || entry.team?.displayName || "Team"} ${Math.round(Number(entry.probability || 0) * 100)}%`).join(" | ")
+          : "";
+        if (winprob) lines.push(`Live edge: ${winprob}`);
+      }
+      lines.push(...formatRecentForm(summary));
+      return lines.join("\n");
+    }
+
+    async function findGameStatsCandidate(text, mode) {
+      const teams = await findTeamsInTextAll(text);
+      const lower = String(text || "").toLowerCase();
+      const requestedLeagues = inferScheduleLeagues(text);
+      const leagueIds = requestedLeagues.length
+        ? requestedLeagues
+        : [...new Set(teams.map((team) => team.league?.league).filter(Boolean))];
+      const leagues = leagueIds.length
+        ? SCOREBOARD_LEAGUES.filter((league) => leagueIds.includes(league.league))
+        : SCOREBOARD_LEAGUES;
+      const dateCandidates = buildGameStatsDates(text, mode);
+
+      for (const date of dateCandidates) {
+        const dateKey = toLocalDateKey(date);
+        const results = await Promise.allSettled(leagues.map((league) => fetchScheduleForLeague(league, dateKey)));
+        const candidates = [];
+        results.forEach((result, index) => {
+          if (result.status !== "fulfilled") return;
+          result.value.forEach((event) => {
+            candidates.push({
+              league: leagues[index],
+              event,
+            });
+          });
+        });
+
+        const matched = candidates.filter(({ event }) => eventMatchesTeams(event, teams));
+        if (matched.length) {
+          const liveMatches = matched.filter(({ event }) => getEventStatus(event).state === "in");
+          const completedMatches = matched.filter(({ event }) => getEventStatus(event).completed);
+          const preferred = mode === "current"
+            ? liveMatches[0] || matched[0]
+            : completedMatches[0] || matched[0];
+          return preferred;
+        }
+
+        if (!teams.length) {
+          const live = candidates.find(({ event }) => getEventStatus(event).state === "in");
+          const completed = candidates.find(({ event }) => getEventStatus(event).completed);
+          if (mode === "current" && live) return live;
+          if (mode === "past" && completed) return completed;
+          if (candidates.length) return candidates[0];
+        }
+      }
+
+      if (!teams.length && lower.match(/(\bcurrent\b|\blive\b|\bnow\b|\breal time\b)/)) {
+        return null;
+      }
+      return null;
+    }
+
+    async function answerGameStatsQuery(text) {
+      const lower = String(text || "").toLowerCase();
+      const wantsCurrent = /(\bcurrent\b|\blive\b|\bnow\b|\breal time\b|\bin[- ]game\b|\bwhat's the score\b|\bwhats the score\b|\bscore update\b)/.test(lower);
+      const wantsPast = /(\bpast\b|\bprevious\b|\blast game\b|\bprevious game\b|\byesterday\b|\bfinal score\b|\bfinal\b)/.test(lower);
+      const modes = wantsCurrent && wantsPast ? ["current", "past"] : [wantsCurrent ? "current" : "past"];
+      state.statusLine = modes.length > 1 ? "Checking current and past game stats." : (modes[0] === "current" ? "Checking live game stats." : "Checking past game stats.");
+      render();
+
+      try {
+        const replies = [];
+        for (const mode of modes) {
+          const candidate = await findGameStatsCandidate(text, mode);
+          if (!candidate) {
+            replies.push(mode === "current"
+              ? "Current stats: I couldn't find a live game for that request. Add the team name or ask for today's slate."
+              : "Past stats: I couldn't find a completed game for that request. Add the team name or a date.");
+            continue;
+          }
+
+          const summary = await fetchMatchupBoxscore(candidate.event.id, candidate.league);
+          replies.push(formatGameStatsReply(mode, candidate.league.label, candidate.event, summary));
+        }
+
+        pushChat("assistant", replies.join("\n\n"), "assistant");
+        state.statusLine = "";
+      } catch (error) {
+        state.statusLine = "";
+        pushChat("assistant", `Could not load game stats: ${error.message}`, "system");
+      }
+
+      render();
     }
 
     function isHistoricalMatchupRequest(text) {
@@ -1507,6 +1732,10 @@
       if (!text) return;
       appendTranscript(text, "note");
       DOM.composerText.value = "";
+      if (isGameStatsRequest(text)) {
+        await answerGameStatsQuery(text);
+        return;
+      }
       if (isHistoricalMatchupRequest(text)) {
         await answerHistoricalMatchup(text);
         return;
