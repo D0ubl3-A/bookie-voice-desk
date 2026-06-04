@@ -3,28 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bookie Voice Desk</title>
-  <meta name="description" content="A simple chatbot-style sports betting voice assistant that listens to a call, tracks bets, and gives strategy notes." />
+  <title>S&P 500 Signal Lab</title>
+  <meta name="description" content="Real-time S&P 500 stock signal engine with machine learning, news flow, SEC filings, and Fed calendar timing." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #06111d;
-      --panel: rgba(13, 25, 42, 0.92);
-      --panel-2: rgba(19, 36, 57, 0.9);
-      --text: #edf5ff;
-      --muted: #8ea3b8;
-      --border: rgba(161, 184, 210, 0.16);
-      --accent: #2ad1be;
-      --accent-2: #13b091;
+      --bg: #071018;
+      --panel: rgba(13, 21, 32, 0.92);
+      --panel-2: rgba(18, 27, 41, 0.88);
+      --text: #eef4fb;
+      --muted: #8ea1b5;
+      --border: rgba(159, 179, 203, 0.16);
+      --accent: #2cd4c6;
+      --accent-2: #55a6ff;
       --warn: #ffb45c;
-      --bad: #ff6f72;
-      --good: #7ef0a9;
-      --shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+      --good: #6ff3a1;
+      --bad: #ff7b83;
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
       --radius: 18px;
       --font-sans: "Manrope", "Segoe UI", sans-serif;
-      --font-mono: "IBM Plex Mono", Consolas, monospace;
+      --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
     }
 
     * { box-sizing: border-box; }
@@ -34,18 +34,19 @@
       font-family: var(--font-sans);
       color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(42, 209, 190, 0.13), transparent 28%),
-        radial-gradient(circle at top right, rgba(255, 180, 92, 0.10), transparent 24%),
-        linear-gradient(180deg, #07111d, #0a1626);
+        radial-gradient(circle at top left, rgba(44, 212, 198, 0.12), transparent 24%),
+        radial-gradient(circle at top right, rgba(85, 166, 255, 0.10), transparent 22%),
+        radial-gradient(circle at 50% 0%, rgba(255, 180, 92, 0.08), transparent 28%),
+        linear-gradient(180deg, #071018, #0a1320 58%, #08111a);
     }
 
-    button, input, textarea { font: inherit; }
+    button, input { font: inherit; }
     button { cursor: pointer; }
 
     .app {
       min-height: 100vh;
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto 1fr;
     }
 
     .topbar {
@@ -53,37 +54,42 @@
       justify-content: space-between;
       gap: 16px;
       align-items: flex-start;
-      padding: 18px 22px 14px;
+      padding: 20px 22px 16px;
       border-bottom: 1px solid var(--border);
-      background: rgba(6, 17, 29, 0.82);
+      background: rgba(7, 16, 24, 0.88);
       backdrop-filter: blur(14px);
       position: sticky;
       top: 0;
-      z-index: 20;
+      z-index: 30;
     }
 
-    .brand { display: grid; gap: 7px; }
+    .brand {
+      display: grid;
+      gap: 7px;
+      max-width: 72ch;
+    }
+
     .eyebrow {
       margin: 0;
       text-transform: uppercase;
       letter-spacing: 0.14em;
       color: var(--accent);
-      font-size: 12px;
       font-weight: 800;
+      font-size: 12px;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(26px, 2.6vw, 40px);
+      font-size: clamp(26px, 2.5vw, 40px);
       line-height: 1.05;
     }
 
     .lede {
       margin: 0;
-      max-width: 78ch;
       color: var(--muted);
-      line-height: 1.5;
+      line-height: 1.55;
       font-size: 14px;
+      max-width: 80ch;
     }
 
     .statusrow {
@@ -108,136 +114,105 @@
     .pill strong { color: var(--text); }
 
     .workspace {
-      padding: 18px 22px 18px;
       display: grid;
-      place-items: center;
+      grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+      gap: 16px;
+      padding: 16px;
+      align-items: start;
     }
 
-    .chat-shell {
-      width: min(100%, 960px);
-      min-height: 0;
-      display: grid;
-      grid-template-rows: 1fr auto;
-      gap: 14px;
-    }
-
-    .chat-panel {
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02));
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       overflow: hidden;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      min-height: min(72vh, 900px);
     }
 
-    .chat-head {
+    .panel-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 10px;
       padding: 14px 16px;
       border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(42, 209, 190, 0.09), transparent);
+      background: linear-gradient(180deg, rgba(44, 212, 198, 0.10), transparent);
     }
 
-    .chat-head .meta {
+    .panel-head .title {
       display: grid;
-      gap: 4px;
+      gap: 3px;
     }
 
-    .chat-head .meta strong {
+    .panel-head .title strong {
       font-size: 15px;
     }
 
-    .chat-head .meta span {
+    .panel-head .title span {
       color: var(--muted);
       font-size: 12px;
     }
 
-    .chat-head .actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
+    .controls {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
     }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(6, 14, 23, 0.72);
+      color: var(--text);
+      padding: 14px 14px;
+      outline: none;
+      min-width: 0;
+    }
+
+    input[type="text"]::placeholder { color: #73849a; }
+    input[type="text"]:focus { border-color: rgba(44, 212, 198, 0.55); box-shadow: 0 0 0 3px rgba(44, 212, 198, 0.12); }
 
     .btn {
       border: 1px solid transparent;
-      border-radius: 999px;
-      padding: 10px 14px;
+      border-radius: 14px;
+      padding: 13px 16px;
       font-weight: 800;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
-      transition: transform 120ms ease, opacity 120ms ease, border-color 120ms ease;
       white-space: nowrap;
+      transition: transform 120ms ease, opacity 120ms ease, border-color 120ms ease;
     }
     .btn:hover { transform: translateY(-1px); }
     .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
-    .btn-primary { background: linear-gradient(180deg, var(--accent), var(--accent-2)); color: #04161f; }
+    .btn-primary { background: linear-gradient(180deg, var(--accent), #1ea899); color: #031318; }
     .btn-secondary { background: rgba(255,255,255,0.04); border-color: var(--border); color: var(--text); }
-    .btn-danger { background: rgba(255,111,114,0.08); border-color: rgba(255,111,114,0.22); color: #ffd2d3; }
 
-    .messages {
-      padding: 16px;
-      overflow: auto;
-      display: grid;
-      gap: 12px;
-      align-content: start;
-      background:
-        radial-gradient(circle at 50% 0%, rgba(255,255,255,0.03), transparent 18%),
-        rgba(4, 14, 25, 0.34);
-    }
-
-    .messages::-webkit-scrollbar { width: 10px; }
-    .messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
-
-    .bubble {
-      width: fit-content;
-      max-width: min(100%, 68ch);
-      padding: 12px 14px;
-      border-radius: 18px;
-      border: 1px solid var(--border);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-      display: grid;
-      gap: 8px;
-    }
-
-    .bubble .label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      font-weight: 800;
+    .mini {
       color: var(--muted);
-    }
-
-    .bubble .text {
-      white-space: pre-wrap;
-      word-break: break-word;
-      line-height: 1.55;
-      font-size: 14px;
-    }
-
-    .bubble.user {
-      margin-left: auto;
-      background: linear-gradient(180deg, rgba(42, 209, 190, 0.16), rgba(19, 176, 145, 0.08));
-      border-color: rgba(42, 209, 190, 0.22);
-    }
-
-    .bubble.assistant {
-      background: rgba(255,255,255,0.035);
-    }
-
-    .bubble.system {
-      background: rgba(255,255,255,0.02);
-      color: var(--muted);
-    }
-
-    .bubble.note {
-      background: rgba(255,180,92,0.08);
-      border-color: rgba(255,180,92,0.20);
+      font-size: 12px;
+      line-height: 1.45;
     }
 
     .chips {
@@ -247,88 +222,137 @@
     }
 
     .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      border-radius: 999px;
-      padding: 6px 10px;
-      font-size: 12px;
-      font-weight: 800;
+      border: 1px solid var(--border);
       background: rgba(255,255,255,0.04);
       color: var(--text);
-      border: 0;
-      appearance: none;
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 700;
     }
-    .chip.good { background: rgba(126,240,169,0.12); color: #a8f3bf; }
-    .chip.warn { background: rgba(255,180,92,0.14); color: #ffd090; }
-    .chip.bad { background: rgba(255,111,114,0.12); color: #ffb9bc; }
-    .chip.accent { background: rgba(42,209,190,0.14); color: #9ef2e8; }
 
-    .composer {
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 14px;
+    .stack {
       display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .content {
+      display: grid;
+      gap: 16px;
+      padding: 16px;
+    }
+
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
 
-    .row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .input-wrap {
-      display: grid;
-      gap: 10px;
-    }
-
-    textarea, input, select {
-      width: 100%;
-      border-radius: 14px;
+    .metric {
       border: 1px solid var(--border);
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      padding: 12px 14px;
-      outline: none;
-      transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
-    }
-
-    textarea { min-height: 82px; resize: vertical; }
-    textarea:focus, input:focus, select:focus {
-      border-color: rgba(42,209,190,0.65);
-      box-shadow: 0 0 0 3px rgba(42,209,190,0.14);
-      background: rgba(255,255,255,0.06);
-    }
-
-    .quickbar {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .quick {
-      border: 1px solid var(--border);
-      border-radius: 14px;
+      border-radius: 16px;
       background: rgba(255,255,255,0.03);
-      padding: 10px 12px;
-      display: grid;
-      gap: 3px;
-      min-height: 70px;
+      padding: 12px 12px 13px;
+      min-width: 0;
     }
-    .quick span {
+
+    .metric span {
+      display: block;
       color: var(--muted);
       font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
       font-weight: 800;
+      margin-bottom: 6px;
     }
-    .quick strong {
-      font-size: 16px;
-      line-height: 1.2;
+
+    .metric strong {
+      display: block;
+      font-size: 22px;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .metric small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .chart-band {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      padding: 12px;
+    }
+
+    .chart-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .chart-head strong { font-size: 14px; }
+    .chart-head span { color: var(--muted); font-size: 12px; }
+
+    .spark {
+      width: 100%;
+      height: 92px;
+      display: block;
+    }
+
+    .horizon-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .signal-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .signal-card.bull { border-color: rgba(111, 243, 161, 0.28); }
+    .signal-card.bear { border-color: rgba(255, 123, 131, 0.28); }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .card-top .kicker {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+      font-size: 11px;
+    }
+
+    .card-top h3 {
+      margin: 4px 0 0;
+      font-size: 18px;
+      line-height: 1.08;
+    }
+
+    .score {
+      font-family: var(--font-mono);
+      font-size: 28px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: -0.04em;
     }
 
     .meter {
@@ -337,397 +361,330 @@
       background: rgba(255,255,255,0.08);
       overflow: hidden;
     }
-    .meter > div {
+
+    .meter > span {
+      display: block;
       height: 100%;
-      width: 0%;
       border-radius: inherit;
-      background: linear-gradient(90deg, var(--accent), var(--warn));
-      transition: width 180ms ease;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
     }
 
-    .live-line {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: center;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .list {
+    .stats {
       display: grid;
-      gap: 10px;
-    }
-
-    .bet-card {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      background: rgba(255,255,255,0.03);
-      padding: 12px;
-      display: grid;
-      gap: 10px;
-    }
-
-    .bet-card-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: flex-start;
-    }
-
-    .bet-card strong {
-      font-size: 15px;
-    }
-
-    .bet-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
     }
 
     .kv {
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 10px;
-      background: rgba(255,255,255,0.03);
+      padding: 8px 10px;
+      min-width: 0;
+      background: rgba(255,255,255,0.02);
     }
 
-    .kv .k {
+    .kv span {
       display: block;
       color: var(--muted);
       font-size: 11px;
-      letter-spacing: 0.06em;
       text-transform: uppercase;
-      font-weight: 800;
+      letter-spacing: 0.08em;
       margin-bottom: 4px;
+      font-weight: 800;
     }
 
-    .kv .v {
+    .kv strong {
+      display: block;
       font-size: 14px;
-      font-weight: 700;
-      word-break: break-word;
+      line-height: 1.25;
     }
 
-    .mini {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
+    .drivers {
+      display: grid;
+      gap: 8px;
     }
 
-    .footer {
-      padding: 0 22px 18px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .footer .info {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: rgba(255,255,255,0.02);
-      padding: 12px 14px;
-    }
-
-    .bets-fold {
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: rgba(255,255,255,0.03);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .bets-fold > summary {
-      list-style: none;
+    .driver {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
-      padding: 14px 16px;
-      cursor: pointer;
-      border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 8px;
+      font-size: 13px;
     }
 
-    .bets-fold > summary::-webkit-details-marker { display: none; }
+    .driver .name { color: var(--text); }
+    .driver .impact {
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
 
-    .bets-fold .summary-title {
+    .feed-grid {
       display: grid;
-      gap: 3px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
     }
 
-    .bets-fold .summary-title strong {
-      font-size: 15px;
+    .feed {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
     }
 
-    .bets-fold .summary-title span {
+    .feed h4 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .feed-list {
+      display: grid;
+      gap: 10px;
+      max-height: 340px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .feed-item {
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 10px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .feed-item:first-child { border-top: 0; padding-top: 0; }
+
+    .feed-item strong {
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .feed-item .meta {
       color: var(--muted);
       font-size: 12px;
+      line-height: 1.35;
     }
 
-    .listening .meter > div {
-      animation: meterPulse 1.1s ease-in-out infinite;
+    .feed-item a {
+      color: #a5d6ff;
+      text-decoration: none;
     }
 
-    @keyframes meterPulse {
-      0%, 100% { width: 20%; }
-      50% { width: 90%; }
+    .feed-item a:hover { text-decoration: underline; }
+
+    .error {
+      border: 1px solid rgba(255, 123, 131, 0.28);
+      background: rgba(255, 123, 131, 0.10);
+      color: #ffd6d8;
+      border-radius: 16px;
+      padding: 12px 14px;
+      line-height: 1.5;
     }
 
-    @media (max-width: 900px) {
-      .topbar, .workspace, .footer { padding-left: 14px; padding-right: 14px; }
-      .topbar { position: static; }
-      .quickbar, .bet-grid { grid-template-columns: 1fr 1fr; }
+    .section {
+      padding: 16px;
     }
 
-    @media (max-width: 680px) {
-      .quickbar, .bet-grid { grid-template-columns: 1fr; }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      margin-bottom: 12px;
+    }
+
+    .section-head strong { font-size: 14px; }
+    .section-head span { color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 1200px) {
+      .workspace { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 920px) {
+      .summary-row, .horizon-grid, .feed-grid { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: 1fr; }
+      .topbar { flex-direction: column; }
       .statusrow { justify-content: flex-start; }
-      .chat-panel { min-height: 66vh; }
     }
   </style>
 </head>
 <body>
-  <div class="app" id="appRoot">
+  <div class="app">
     <header class="topbar">
       <div class="brand">
-        <p class="eyebrow">Bookie Voice Desk</p>
-        <h1>One chat window for the call, the bet, and the strategy.</h1>
-        <p class="lede">Ask naturally, get schedules, current game stats, past game stats, and matchup history without the dashboard clutter.</p>
+        <p class="eyebrow">S&amp;P 500 Signal Lab</p>
+        <h1>Real-time stock signal engine for the S&amp;P 500.</h1>
+        <p class="lede">The model trains on live market bars, then adjusts its score with news flow, SEC filings, and the next Fed meeting. It is a research tool, not trading advice.</p>
       </div>
       <div class="statusrow">
-        <div class="pill">Mic <strong id="micState">idle</strong></div>
-        <div class="pill">Open <strong id="openCount">0</strong></div>
-        <div class="pill">Exposure <strong id="exposureTotal">$0</strong></div>
+        <div class="pill">Universe <strong id="universeCount">0</strong></div>
+        <div class="pill">Current <strong id="selectedTicker">AAPL</strong></div>
+        <div class="pill">Updated <strong id="updatedAt">—</strong></div>
       </div>
     </header>
 
     <main class="workspace">
-      <section class="chat-shell">
-        <section class="chat-panel" id="voicePanel">
-          <div class="chat-head">
-            <div class="meta">
-              <strong>Chat</strong>
-              <span>Type naturally, paste a note, or speak. Ask for today's games, current stats, past stats, a matchup history, or anything else.</span>
-            </div>
-            <div class="actions">
-              <button class="btn btn-primary" id="listenBtn" type="button">▶ Listen</button>
-              <button class="btn btn-danger" id="stopBtn" type="button" disabled>■ Stop</button>
-            </div>
+      <aside class="panel stack">
+        <div class="panel-head">
+          <div class="title">
+            <strong>Analyze ticker</strong>
+            <span>Pick any S&amp;P 500 name and run the three-horizon model.</span>
           </div>
-          <div class="messages" id="messages"></div>
-        </section>
+        </div>
 
-        <section class="composer">
-          <div class="quickbar">
-            <div class="quick"><span>Status</span><strong id="statusTitle">Ready</strong></div>
-            <div class="quick"><span>Draft</span><strong id="draftState">Idle</strong></div>
-            <div class="quick"><span>Signal</span><strong id="signalScore">0</strong></div>
-            <div class="quick"><span>Confidence</span><strong id="confidenceScore">0%</strong></div>
+        <div class="controls">
+          <div class="field">
+            <label for="tickerInput">Ticker or company</label>
+            <div class="input-row">
+              <input id="tickerInput" type="text" list="universeList" placeholder="AAPL, MSFT, NVDA, JPM..." autocomplete="off" spellcheck="false" />
+              <button id="analyzeBtn" class="btn btn-primary" type="button">Analyze</button>
+            </div>
+            <datalist id="universeList"></datalist>
+            <div class="mini">You can type a ticker, company name, or sector keyword. The list is filtered to current S&amp;P 500 constituents.</div>
           </div>
 
-          <div class="meter"><div id="voiceMeter"></div></div>
-          <div class="live-line">
-            <span id="liveHint">No transcript yet.</span>
-            <span id="rateHint">Browser speech on supported browsers only.</span>
+          <div class="field">
+            <label>Quick picks</label>
+            <div class="chips" id="quickPicks"></div>
           </div>
 
-          <div class="input-wrap">
-            <textarea id="composerText" placeholder="Ask anything. Try: what games are today, current Padres stats, last time Padres played Phillies, or a general question."></textarea>
-            <div class="mini">Type here and press Enter to send. Shift+Enter makes a new line.</div>
-            <div class="row">
-              <button class="btn btn-secondary" id="sendBtn" type="button">Send</button>
-              <button class="btn btn-secondary" id="noteBtn" type="button">Add note</button>
-              <button class="btn btn-secondary" id="draftBtn" type="button">Draft bet</button>
-              <button class="btn btn-secondary" id="clearBtn" type="button">Clear chat</button>
-            </div>
+          <div class="field">
+            <label>Universe search</label>
+            <div class="mini" id="universeHint">Loading constituents and sector data.</div>
           </div>
 
-          <div class="row">
-            <div style="flex: 1 1 240px; display:grid; gap:6px;">
-              <label class="mini" for="bankroll">Bankroll</label>
-              <input id="bankroll" type="number" min="0" step="100" />
+          <div id="controlError" class="error" style="display:none;"></div>
+        </div>
+
+        <div class="panel-head">
+          <div class="title">
+            <strong>Market context</strong>
+            <span>Positioning, regime, and market stress.</span>
+          </div>
+        </div>
+        <div class="section" id="contextPanel">
+          <div class="mini">Run an analysis to load context.</div>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div class="title">
+            <strong id="analysisTitle">Analysis</strong>
+            <span id="analysisSub">Waiting for input.</span>
+          </div>
+          <div class="pill">Model <strong id="modelState">Idle</strong></div>
+        </div>
+
+        <div class="content">
+          <div class="summary-row" id="summaryRow"></div>
+
+          <div class="chart-band">
+            <div class="chart-head">
+              <strong>Price context</strong>
+              <span id="priceCaption">No data yet.</span>
             </div>
-            <div style="flex: 1 1 180px; display:grid; gap:6px;">
-              <label class="mini" for="unitSize">Unit size</label>
-              <input id="unitSize" type="number" min="0" step="1" />
-            </div>
-            <div style="flex: 1 1 180px; display:grid; gap:6px;">
-              <label class="mini" for="betStatusFilter">Bet status</label>
-              <select id="betStatusFilter">
-                <option value="draft">Draft</option>
-                <option value="open">Open</option>
-                <option value="pending">Pending</option>
-                <option value="won">Won</option>
-                <option value="lost">Lost</option>
-                <option value="held">Held</option>
-              </select>
-            </div>
-            <div style="flex: 1 1 180px; display:grid; gap:6px;">
-              <label class="mini" for="betMarket">Market</label>
-              <select id="betMarket">
-                <option value="">Auto</option>
-                <option value="spread">Spread</option>
-                <option value="moneyline">Moneyline</option>
-                <option value="total">Total</option>
-                <option value="prop">Prop</option>
-                <option value="live">Live</option>
-              </select>
-            </div>
+            <div id="chartBand"></div>
           </div>
 
-          <div class="row">
-            <button class="chip accent" id="latestBtn" type="button">Use latest transcript</button>
-            <button class="chip" id="addBetBtn" type="button">Track bet</button>
-            <button class="chip warn" id="resetDraftBtn" type="button">Reset draft</button>
-          </div>
-        </section>
+          <div class="horizon-grid" id="horizonGrid"></div>
 
-        <details class="bets-fold">
-          <summary>
-            <div class="summary-title">
-              <strong>Tracked bets</strong>
-              <span>Collapsed by default so the page stays chat-first.</span>
-            </div>
-            <span class="pill">Open <strong id="betCountFold">0</strong></span>
-          </summary>
-          <div class="messages" id="bets"></div>
-        </details>
+          <div class="feed-grid">
+            <article class="feed">
+              <h4>News flow</h4>
+              <div id="newsFeed" class="feed-list"><div class="mini">Waiting for analysis.</div></div>
+            </article>
+            <article class="feed">
+              <h4>SEC filings</h4>
+              <div id="secFeed" class="feed-list"><div class="mini">Waiting for analysis.</div></div>
+            </article>
+            <article class="feed">
+              <h4>Macro risk</h4>
+              <div id="macroFeed" class="feed-list"><div class="mini">Waiting for analysis.</div></div>
+            </article>
+          </div>
+        </div>
       </section>
     </main>
-
-    <footer class="footer">
-      <div class="info">
-        Use this only with consent and within the local laws that apply to recording or transcribing audio. The assistant organizes bets and strategy notes, but it does not promise outcomes.
-      </div>
-    </footer>
   </div>
 
   <script>
-    const STORAGE_KEY = "bookie-voice-desk-simple-v1";
-    const DEFAULT_STATE = {
-      bankroll: 5000,
-      unitSize: 100,
-      draftStatus: "draft",
-      market: "",
-      transcript: [],
-      chat: [],
-      bets: [],
-      draft: { event: "", selection: "", odds: "", stake: 100, note: "", book: "", category: "pre" },
-      listening: false,
-      liveText: "",
-      interimText: "",
-      statusLine: "",
+    const state = {
+      universe: [],
+      analysis: null,
+      selected: "AAPL",
+      loading: false,
+      error: "",
     };
 
-    const SCOREBOARD_LEAGUES = [
-      { label: "MLB", sport: "baseball", league: "mlb" },
-      { label: "NHL", sport: "hockey", league: "nhl" },
-      { label: "WNBA", sport: "basketball", league: "wnba" },
-      { label: "NBA", sport: "basketball", league: "nba" },
-      { label: "NFL", sport: "football", league: "nfl" },
-      { label: "College Football", sport: "football", league: "college-football" },
-      { label: "College Basketball", sport: "basketball", league: "mens-college-basketball" },
-    ];
-
-    const MLB_LEAGUE = SCOREBOARD_LEAGUES[0];
-    const THESPORTSDB_BASE = "https://www.thesportsdb.com/api/v1/json/123";
-    const MLB_TEAM_INDEX = [
-      { id: "29", displayName: "Arizona Diamondbacks", shortDisplayName: "Diamondbacks", abbreviation: "ARI", aliases: ["arizona diamondbacks", "diamondbacks", "dbacks", "ari"] },
-      { id: "11", displayName: "Athletics", shortDisplayName: "Athletics", abbreviation: "ATH", aliases: ["athletics", "oakland athletics", "ath", "a's"] },
-      { id: "15", displayName: "Atlanta Braves", shortDisplayName: "Braves", abbreviation: "ATL", aliases: ["atlanta braves", "braves", "atl"] },
-      { id: "1", displayName: "Baltimore Orioles", shortDisplayName: "Orioles", abbreviation: "BAL", aliases: ["baltimore orioles", "orioles", "bal"] },
-      { id: "2", displayName: "Boston Red Sox", shortDisplayName: "Red Sox", abbreviation: "BOS", aliases: ["boston red sox", "red sox", "bos"] },
-      { id: "16", displayName: "Chicago Cubs", shortDisplayName: "Cubs", abbreviation: "CHC", aliases: ["chicago cubs", "cubs", "chc"] },
-      { id: "4", displayName: "Chicago White Sox", shortDisplayName: "White Sox", abbreviation: "CHW", aliases: ["chicago white sox", "white sox", "chw"] },
-      { id: "17", displayName: "Cincinnati Reds", shortDisplayName: "Reds", abbreviation: "CIN", aliases: ["cincinnati reds", "reds", "cin"] },
-      { id: "5", displayName: "Cleveland Guardians", shortDisplayName: "Guardians", abbreviation: "CLE", aliases: ["cleveland guardians", "guardians", "cle"] },
-      { id: "27", displayName: "Colorado Rockies", shortDisplayName: "Rockies", abbreviation: "COL", aliases: ["colorado rockies", "rockies", "col"] },
-      { id: "6", displayName: "Detroit Tigers", shortDisplayName: "Tigers", abbreviation: "DET", aliases: ["detroit tigers", "tigers", "det"] },
-      { id: "18", displayName: "Houston Astros", shortDisplayName: "Astros", abbreviation: "HOU", aliases: ["houston astros", "astros", "hou"] },
-      { id: "7", displayName: "Kansas City Royals", shortDisplayName: "Royals", abbreviation: "KC", aliases: ["kansas city royals", "royals", "kc"] },
-      { id: "3", displayName: "Los Angeles Angels", shortDisplayName: "Angels", abbreviation: "LAA", aliases: ["los angeles angels", "angels", "laa", "anaheim angels"] },
-      { id: "19", displayName: "Los Angeles Dodgers", shortDisplayName: "Dodgers", abbreviation: "LAD", aliases: ["los angeles dodgers", "dodgers", "lad"] },
-      { id: "28", displayName: "Miami Marlins", shortDisplayName: "Marlins", abbreviation: "MIA", aliases: ["miami marlins", "marlins", "mia"] },
-      { id: "8", displayName: "Milwaukee Brewers", shortDisplayName: "Brewers", abbreviation: "MIL", aliases: ["milwaukee brewers", "brewers", "mil"] },
-      { id: "9", displayName: "Minnesota Twins", shortDisplayName: "Twins", abbreviation: "MIN", aliases: ["minnesota twins", "twins", "min"] },
-      { id: "21", displayName: "New York Mets", shortDisplayName: "Mets", abbreviation: "NYM", aliases: ["new york mets", "mets", "nym"] },
-      { id: "10", displayName: "New York Yankees", shortDisplayName: "Yankees", abbreviation: "NYY", aliases: ["new york yankees", "yankees", "nyy"] },
-      { id: "22", displayName: "Philadelphia Phillies", shortDisplayName: "Phillies", abbreviation: "PHI", aliases: ["philadelphia phillies", "phillies", "phi"] },
-      { id: "23", displayName: "Pittsburgh Pirates", shortDisplayName: "Pirates", abbreviation: "PIT", aliases: ["pittsburgh pirates", "pirates", "pit"] },
-      { id: "25", displayName: "San Diego Padres", shortDisplayName: "Padres", abbreviation: "SD", aliases: ["san diego padres", "padres", "sd"] },
-      { id: "26", displayName: "San Francisco Giants", shortDisplayName: "Giants", abbreviation: "SF", aliases: ["san francisco giants", "giants", "sf"] },
-      { id: "12", displayName: "Seattle Mariners", shortDisplayName: "Mariners", abbreviation: "SEA", aliases: ["seattle mariners", "mariners", "sea"] },
-      { id: "24", displayName: "St. Louis Cardinals", shortDisplayName: "Cardinals", abbreviation: "STL", aliases: ["st louis cardinals", "st. louis cardinals", "cardinals", "stl"] },
-      { id: "30", displayName: "Tampa Bay Rays", shortDisplayName: "Rays", abbreviation: "TB", aliases: ["tampa bay rays", "rays", "tb"] },
-      { id: "13", displayName: "Texas Rangers", shortDisplayName: "Rangers", abbreviation: "TEX", aliases: ["texas rangers", "rangers", "tex"] },
-      { id: "14", displayName: "Toronto Blue Jays", shortDisplayName: "Blue Jays", abbreviation: "TOR", aliases: ["toronto blue jays", "blue jays", "tor"] },
-      { id: "20", displayName: "Washington Nationals", shortDisplayName: "Nationals", abbreviation: "WSH", aliases: ["washington nationals", "nationals", "wsh"] },
-    ];
-
     const DOM = {};
-    let state = loadState();
-    let recognition = null;
-    let transcriptId = 0;
-    let betId = 0;
-    let teamIndexPromise = null;
-    let teamIndex = null;
 
-    function clone(value) {
-      return JSON.parse(JSON.stringify(value));
+    function fmtPct(value, digits = 1) {
+      const n = Number(value || 0) * 100;
+      return `${n >= 0 ? "+" : ""}${n.toFixed(digits)}%`;
     }
 
-    function loadState() {
-      try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-        if (saved && typeof saved === "object") {
-          return {
-            ...clone(DEFAULT_STATE),
-            ...saved,
-            chat: [],
-            transcript: [],
-            liveText: "",
-            interimText: "",
-            statusLine: "",
-            draft: { ...clone(DEFAULT_STATE.draft), ...(saved.draft || {}) },
-          };
-        }
-      } catch {}
-      return clone(DEFAULT_STATE);
+    function fmtSigned(value, digits = 1) {
+      const n = Number(value || 0);
+      return `${n >= 0 ? "+" : ""}${n.toFixed(digits)}`;
     }
 
-    function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        bankroll: state.bankroll,
-        unitSize: state.unitSize,
-        draftStatus: state.draftStatus,
-        market: state.market,
-        bets: state.bets,
-        draft: state.draft,
-      }));
+    function fmtMoney(value) {
+      return `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
 
-    function money(value) {
-      const amount = Number(value || 0);
-      return `$${amount.toLocaleString(undefined, {
-        minimumFractionDigits: Number.isInteger(amount) ? 0 : 1,
-        maximumFractionDigits: 2,
-      })}`;
+    function fmtDate(value) {
+      if (!value) return "—";
+      const date = new Date(value);
+      return Number.isFinite(date.getTime())
+        ? date.toLocaleDateString([], { month: "short", day: "numeric" })
+        : value;
     }
 
-    function marketLabel(value, draft = null) {
-      if (value) return value;
-      if (!draft) return "auto";
-      const text = `${draft.selection || ""} ${draft.note || ""}`.toLowerCase();
-      if (/\blive\b|in[- ]game|halftime/.test(text)) return "live";
-      if (/\bover\b|\bunder\b|\btotal\b/.test(text)) return "total";
-      if (/\bprop\b/.test(text)) return "prop";
-      if (/\bmoneyline\b|\bml\b/.test(text)) return "moneyline";
-      if (/\bspread\b|\bpickem\b|\bline\b/.test(text)) return "spread";
-      return "auto";
+    function fmtDays(value) {
+      const days = Number(value);
+      if (!Number.isFinite(days)) return "—";
+      if (days < 1) return "<1d";
+      if (days === 1) return "1d";
+      return `${days.toFixed(days < 10 ? 1 : 0)}d`;
+    }
+
+    function modelTone(probability) {
+      if (probability >= 0.56) return "bull";
+      if (probability <= 0.44) return "bear";
+      return "neutral";
     }
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
+    }
+
+    function sparkline(series, stroke = "#2cd4c6") {
+      const points = Array.isArray(series) ? series.map((point, index) => `${(index / Math.max(series.length - 1, 1)) * 100},${100 - point.n}`).join(" ") : "";
+      return `
+        <svg viewBox="0 0 100 100" class="spark" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="sparkFill-${stroke.replace(/[^a-z0-9]/gi, "")}" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="${stroke}" stop-opacity="0.26"></stop>
+              <stop offset="100%" stop-color="${stroke}" stop-opacity="0"></stop>
+            </linearGradient>
+          </defs>
+          <polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+        </svg>
+      `;
+    }
+
+    function renderDrivers(drivers) {
+      if (!drivers?.length) return '<div class="mini">No feature drivers available.</div>';
+      return drivers.map((driver) => `
+        <div class="driver">
+          <div class="name">${escapeHtml(driver.name)}</div>
+          <div class="impact">${driver.impact >= 0 ? "+" : ""}${driver.impact.toFixed(3)}</div>
+        </div>
+      `).join("");
     }
 
     function escapeHtml(value) {
@@ -739,1309 +696,256 @@
         .replaceAll("'", "&#039;");
     }
 
-    function detectSignals(text) {
-      const lower = String(text || "").toLowerCase();
-      const flags = [];
-      const notes = [];
-      const next = [];
-
-      if (/injur|questionable|out|doubtful|sidelined/.test(lower)) {
-        flags.push("Injury or availability mentioned");
-        next.push("Check the injury report and lineup status before entering the play.");
-      }
-      if (/line move|steam|opened at|current line|moved to/.test(lower)) {
-        notes.push("Line movement mentioned. Recheck the market before acting.");
-      }
-      if (/over|under|total|pace|tempo/.test(lower)) {
-        notes.push("Totals language detected. Confirm pace and possession context.");
-      }
-      if (/spread|favorite|dog|underdog/.test(lower)) {
-        notes.push("Spread language detected. Confirm the current number.");
-      }
-      if (/live|in[- ]game|halftime/.test(lower)) {
-        flags.push("Live betting context");
-        next.push("Live markets move fast. Recheck score, clock, and injury context.");
-      }
-      if (/weather|wind|rain|snow/.test(lower)) {
-        flags.push("Weather or field conditions mentioned");
-        next.push("Check weather and venue conditions if the sport is outdoors.");
-      }
-      if (/back[- ]?to[- ]?back|travel|rest|fatigue/.test(lower)) {
-        flags.push("Schedule spot mentioned");
-        next.push("Look at rest, travel, and fatigue before deciding.");
-      }
-
-      if (!flags.length) flags.push("No obvious risk flag detected yet.");
-      if (!notes.length) notes.push("No line movement language detected yet.");
-      if (!next.length) next.push("Keep listening until the call gives you a clear angle.");
-
-      return { flags, notes, next };
+    function horizonCard(label, horizon, subtitle) {
+      const tone = modelTone(horizon.probability);
+      const direction = horizon.probability >= 0.5 ? "Bullish" : "Bearish";
+      const fill = clamp(horizon.probability * 100, 2, 98);
+      return `
+        <article class="signal-card ${tone}">
+          <div class="card-top">
+            <div>
+              <div class="kicker">${escapeHtml(label)}</div>
+              <h3>${escapeHtml(subtitle)}</h3>
+            </div>
+            <div class="score">${fill.toFixed(0)}%</div>
+          </div>
+          <div class="mini">${direction} bias · confidence ${horizon.confidence.toFixed(0)}% · event boost ${fmtSigned(horizon.eventBoost, 3)}</div>
+          <div class="meter"><span style="width:${fill}%"></span></div>
+          <div class="stats">
+            <div class="kv"><span>Base</span><strong>${(horizon.baseProbability * 100).toFixed(1)}%</strong></div>
+            <div class="kv"><span>Event adj.</span><strong>${fmtSigned(horizon.eventBoost, 3)}</strong></div>
+            <div class="kv"><span>Training rows</span><strong>${horizon.trainingSamples}</strong></div>
+          </div>
+          <div>${renderDrivers(horizon.drivers)}</div>
+        </article>
+      `;
     }
 
-    function draftFromText(text) {
-      const lower = String(text || "").toLowerCase();
-      const draft = clone(DEFAULT_STATE.draft);
-      draft.note = String(text || "").trim();
-
-      const odds = draft.note.match(/([+-]\d{3,4}|even|evens)/i);
-      if (odds) draft.odds = odds[1].toUpperCase();
-
-      const stake = draft.note.match(/(\d+(?:\.\d+)?)\s*(?:u|unit|units|\$|dollars)/i);
-      if (stake) draft.stake = Number(stake[1]);
-
-      if (/moneyline|ml/.test(lower)) draft.selection = "Moneyline";
-      else if (/over/.test(lower)) {
-        const over = draft.note.match(/over\s+([0-9]+(?:\.[0-9]+)?)/i);
-        draft.selection = over ? `Over ${over[1]}` : "Over";
-      } else if (/under/.test(lower)) {
-        const under = draft.note.match(/under\s+([0-9]+(?:\.[0-9]+)?)/i);
-        draft.selection = under ? `Under ${under[1]}` : "Under";
-      } else if (/spread/.test(lower)) draft.selection = "Spread";
-      else if (/prop/.test(lower)) draft.selection = "Prop";
-
-      if (/live|in[- ]game/.test(lower)) draft.category = "live";
-      if (/parlay/.test(lower)) draft.category = "parlay";
-
-      if (/open|play|take|bet|lock/.test(lower)) {
-        state.draftStatus = "open";
-      }
-
-      return draft;
+    function renderMetric(label, value, note) {
+      return `
+        <div class="metric">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+          <small>${escapeHtml(note || "")}</small>
+        </div>
+      `;
     }
 
-    function speechErrorCopy(error) {
-      switch (error) {
-        case "no-speech":
-          return "No speech was detected. Try again with the mic closer to the call audio.";
-        case "network":
-          return "Speech recognition could not reach the service. Check browser connectivity or use typed notes.";
-        case "not-allowed":
-        case "service-not-allowed":
-          return "Microphone access is blocked. Allow mic permission and try again.";
-        case "audio-capture":
-          return "No microphone input is available. Check the selected input device.";
-        case "aborted":
-          return "Listening stopped.";
-        default:
-          return `Speech recognition error: ${error || "unknown"}`;
-      }
+    function renderFeedItem(item, extra = "") {
+      return `
+        <div class="feed-item">
+          <strong>${escapeHtml(item.title || item.form || "Item")}</strong>
+          <div class="meta">${escapeHtml(extra)}</div>
+        </div>
+      `;
     }
 
-    function pad(value) {
-      return String(value).padStart(2, "0");
-    }
-
-    function toLocalDateKey(date) {
-      return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
-    }
-
-    function toPrettyDate(date) {
-      return date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-    }
-
-    function normalizeToken(value) {
-      return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-    }
-
-    function addDays(date, days) {
-      const next = new Date(date);
-      next.setDate(next.getDate() + days);
-      return next;
-    }
-
-    function parseRequestedDate(text) {
-      const lower = String(text || "").toLowerCase();
-      const today = new Date();
-      if (/\btomorrow\b/.test(lower)) return addDays(today, 1);
-      if (/\byesterday\b/.test(lower)) return addDays(today, -1);
-
-      const iso = lower.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
-      if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-
-      const slash = lower.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
-      if (slash) {
-        const year = Number(slash[3].length === 2 ? `20${slash[3]}` : slash[3]);
-        return new Date(year, Number(slash[1]) - 1, Number(slash[2]));
-      }
-
-      const parsed = new Date(text);
-      if (!Number.isNaN(parsed.getTime())) return parsed;
-      return today;
-    }
-
-    function isScheduleRequest(text) {
-      const lower = String(text || "").toLowerCase();
-      return /(\bgame\b|\bgames\b|\bschedule\b|\bmatchup\b|\bmatchups\b|\bwho plays\b|\bwhat plays\b|\bwhat games\b|\bgames are\b|\bplay on\b|\bplay(s)?\b.*\b(today|tomorrow|tonight)\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b)/.test(lower);
-    }
-
-    function isGameStatsRequest(text) {
-      const lower = String(text || "").toLowerCase();
-      return /(\bcurrent stats\b|\blive stats\b|\breal time\b|\brealtime\b|\bboxscore\b|\bbox score\b|\bgame stats\b|\bstat line\b|\bscore update\b|\bwhat's the score\b|\bwhats the score\b|\bhow is the game\b|\bwho's winning\b|\bwhos winning\b|\bin[- ]game\b|\bcurrent game\b|\bpast game\b|\blast game\b|\bprevious game\b|\bfinal score\b|\bplayer stats\b|\bteam stats\b)/.test(lower);
-    }
-
-    function isVegasLinesRequest(text) {
-      const lower = String(text || "").toLowerCase();
-      return /(\bvegas line\b|\bvegas lines\b|\blines\b|\bodds\b|\bspreads\b|\bspread\b|\bmoneyline\b|\bml\b|\bover under\b|\bo\/u\b|\btotal\b|\bbook line\b|\bclosing line\b|\bopening line\b)/.test(lower);
-    }
-
-    function inferScheduleLeagues(text) {
-      const lower = String(text || "").toLowerCase();
-      const leagues = [];
-      const mentionsCollegeFootball = /\bcollege football\b|\bcfb\b/.test(lower);
-
-      if (/\bmlb\b|\bbaseball\b/.test(lower)) leagues.push("mlb");
-      if (/\bnhl\b|\bhockey\b/.test(lower)) leagues.push("nhl");
-      if (/\bwnba\b/.test(lower)) leagues.push("wnba");
-      if (/\bnba\b|\bbasketball\b/.test(lower)) leagues.push("nba");
-      if (/\bnfl\b|\bcollege football\b|\bcfb\b|\bfootball\b/.test(lower)) {
-        if (mentionsCollegeFootball) leagues.push("college-football");
-        if (/\bnfl\b/.test(lower) || (!mentionsCollegeFootball && /\bfootball\b/.test(lower))) leagues.push("nfl");
-      }
-      if (/\bcollege basketball\b|\bcbb\b|\bmens college basketball\b|\bmen's college basketball\b|\bncaab\b/.test(lower)) leagues.push("mens-college-basketball");
-
-      return [...new Set(leagues)];
-    }
-
-    async function fetchScheduleForLeague(league, dateKey) {
-      const url = `https://site.api.espn.com/apis/site/v2/sports/${league.sport}/${league.league}/scoreboard?dates=${dateKey}&limit=1000`;
-      const response = await fetch(url, { mode: "cors" });
-      if (!response.ok) {
-        throw new Error(`${league.label} returned HTTP ${response.status}`);
-      }
-      const data = await response.json();
-      const events = Array.isArray(data.events) ? data.events : [];
-      return events.map((event) => {
-        const competition = event.competitions?.[0] || {};
-        const competitors = competition.competitors || [];
-        const away = competitors.find((entry) => entry.homeAway === "away");
-        const home = competitors.find((entry) => entry.homeAway === "home");
-        return {
-          id: event.id || "",
-          league: league.label,
-          name: event.shortName || event.name || "Game",
-          away: away?.team?.shortDisplayName || away?.team?.displayName || "Away",
-          home: home?.team?.shortDisplayName || home?.team?.displayName || "Home",
-          start: event.date || competition.date || event.startDate || "",
-          status: competition.status?.type?.shortDetail || event.status?.type?.shortDetail || competition.status?.type?.description || "Scheduled",
-          state: competition.status?.type?.state || event.status?.type?.state || "",
-          odds: competition.odds?.[0] || null,
-          competition,
-        };
-      });
-    }
-
-    function formatVegasOdds(odds) {
-      if (!odds) return "";
-      const provider = odds.provider?.displayName || odds.provider?.name || "";
-      const parts = [];
-      if (odds.moneyline) {
-        const away = odds.moneyline.away?.close?.odds ?? "";
-        const home = odds.moneyline.home?.close?.odds ?? "";
-        if (away || home) parts.push(`ML ${away}/${home}`);
-      }
-      if (odds.pointSpread) {
-        const awayLine = odds.pointSpread.away?.close?.line ?? "";
-        const awayOdds = odds.pointSpread.away?.close?.odds ?? "";
-        const homeLine = odds.pointSpread.home?.close?.line ?? "";
-        const homeOdds = odds.pointSpread.home?.close?.odds ?? "";
-        if (awayLine || homeLine) parts.push(`RL ${awayLine}/${homeLine} (${awayOdds}/${homeOdds})`);
-      }
-      if (odds.total) {
-        const overLine = odds.total.over?.close?.line ?? "";
-        const overOdds = odds.total.over?.close?.odds ?? "";
-        const underLine = odds.total.under?.close?.line ?? "";
-        const underOdds = odds.total.under?.close?.odds ?? "";
-        if (overLine || underLine) parts.push(`Total ${overLine}/${underLine} (${overOdds}/${underOdds})`);
-      }
-      if (!parts.length && odds.details) parts.push(odds.details);
-      if (provider) parts.unshift(provider);
-      return parts.join(" | ");
-    }
-
-    function formatVegasLineEntry(game) {
-      const line = formatVegasOdds(game.odds);
-      if (!line) return "";
-      return `${game.away} at ${game.home} - ${line}`;
-    }
-
-    async function fetchLeagueTeams(league) {
-      const url = `https://site.api.espn.com/apis/site/v2/sports/${league.sport}/${league.league}/teams`;
-      const response = await fetch(url, { mode: "cors" });
-      if (!response.ok) {
-        throw new Error(`${league.label} teams returned HTTP ${response.status}`);
-      }
-      const data = await response.json();
-      const teams = data?.sports?.[0]?.leagues?.[0]?.teams || [];
-      return teams.map((entry) => ({
-        league: league,
-        ...entry.team,
-      }));
-    }
-
-    function teamAliases(team) {
-      const aliases = [
-        team.displayName,
-        team.shortDisplayName,
-        team.name,
-        team.abbreviation,
-        `${team.location} ${team.shortDisplayName}`,
-        `${team.location} ${team.name}`,
-      ].filter(Boolean);
-      return [...new Set(aliases.map(normalizeToken).filter((alias) => alias.length > 1))];
-    }
-
-    async function ensureTeamIndex() {
-      if (teamIndex) return teamIndex;
-      if (!teamIndexPromise) {
-        teamIndexPromise = Promise.allSettled(SCOREBOARD_LEAGUES.map((league) => fetchLeagueTeams(league))).then((results) => {
-          const teams = [];
-          results.forEach((result) => {
-            if (result.status === "fulfilled") {
-              result.value.forEach((team) => {
-                teams.push({
-                  ...team,
-                  aliases: teamAliases(team),
-                });
-              });
-            }
-          });
-          teamIndex = teams;
-          return teams;
-        });
-      }
-      return teamIndexPromise;
-    }
-
-    function findTeamsInText(text) {
-      const normalized = ` ${normalizeToken(text)} `;
-      const matches = [];
-      MLB_TEAM_INDEX.forEach((team) => {
-        const alias = team.aliases
-          .slice()
-          .sort((a, b) => b.length - a.length)
-          .find((item) => normalized.includes(` ${item} `));
-        if (alias) {
-          matches.push({ team, alias });
-        }
-      });
-      matches.sort((a, b) => b.alias.length - a.alias.length);
-      const unique = [];
-      const seen = new Set();
-      matches.forEach((match) => {
-        if (!seen.has(match.team.id)) {
-          seen.add(match.team.id);
-          unique.push({
-            ...match.team,
-            league: MLB_LEAGUE,
-          });
-        }
-      });
-      return unique.slice(0, 4);
-    }
-
-    async function findTeamsInTextAll(text) {
-      const index = await ensureTeamIndex();
-      const normalized = ` ${normalizeToken(text)} `;
-      const matches = [];
-      index.forEach((team) => {
-        const alias = team.aliases
-          .slice()
-          .sort((a, b) => b.length - a.length)
-          .find((item) => normalized.includes(` ${item} `));
-        if (alias) {
-          matches.push({ team, alias });
-        }
-      });
-      matches.sort((a, b) => b.alias.length - a.alias.length);
-      const unique = [];
-      const seen = new Set();
-      matches.forEach((match) => {
-        if (!seen.has(match.team.id)) {
-          seen.add(match.team.id);
-          unique.push(match.team);
-        }
-      });
-      return unique.slice(0, 4);
-    }
-
-    function teamMatchesCompetitor(team, competitor) {
-      const competitorTokens = [
-        competitor?.team?.id,
-        competitor?.team?.displayName,
-        competitor?.team?.shortDisplayName,
-        competitor?.team?.name,
-        competitor?.team?.abbreviation,
-        competitor?.team?.location,
-      ].map(normalizeToken).filter(Boolean);
-      const aliases = team?.aliases || teamAliases(team);
-      return aliases.some((alias) => competitorTokens.some((value) => (
-        value === alias ||
-        value.includes(alias) ||
-        alias.includes(value)
-      )));
-    }
-
-    function eventMatchesTeams(event, teams) {
-      if (!teams.length) return true;
-      const competitors = event?.competition?.competitors || event?.competitions?.[0]?.competitors || [];
-      if (!competitors.length) return false;
-      return teams.every((team) => competitors.some((competitor) => teamMatchesCompetitor(team, competitor)));
-    }
-
-    function getEventStatus(event) {
-      const competition = event?.competition || event?.competitions?.[0] || {};
-      return competition.status?.type || event?.status?.type || {};
-    }
-
-    function getEventCompetitors(event) {
-      return event?.competition?.competitors || event?.competitions?.[0]?.competitors || [];
-    }
-
-    function getEventScoreLine(event) {
-      const competitors = getEventCompetitors(event);
-      const away = competitors.find((entry) => entry.homeAway === "away");
-      const home = competitors.find((entry) => entry.homeAway === "home");
-      return {
-        away,
-        home,
-        awayScore: away?.score ?? "",
-        homeScore: home?.score ?? "",
-      };
-    }
-
-    function buildGameStatsDates(text, mode) {
-      const base = parseRequestedDate(text);
-      const today = new Date();
-      const start = mode === "past" && Math.abs(base - today) < 24 * 60 * 60 * 1000 ? addDays(today, -1) : base;
-      const dates = [];
-      const totalDays = mode === "current" ? 1 : 7;
-      for (let offset = 0; offset < totalDays; offset += 1) {
-        dates.push(addDays(start, -offset));
-      }
-      return dates;
-    }
-
-    function formatRecentTeamGame(teamBlock, game) {
-      const teamId = String(teamBlock?.team?.id || "");
-      const homeId = String(game?.homeTeamId || "");
-      const awayId = String(game?.awayTeamId || "");
-      const isHome = teamId && teamId === homeId;
-      const teamScore = isHome ? game.homeTeamScore : game.awayTeamScore;
-      const oppScore = isHome ? game.awayTeamScore : game.homeTeamScore;
-      const side = isHome ? "vs" : "@";
-      const result = game?.gameResult === "W" ? "W" : "L";
-      return `${result} ${teamScore}-${oppScore} ${side} ${game?.opponent?.displayName || "opponent"}`;
-    }
-
-    function formatRecentForm(summary) {
-      const blocks = Array.isArray(summary?.lastFiveGames) ? summary.lastFiveGames.slice(0, 2) : [];
-      if (!blocks.length) return [];
-      const lines = ["Recent form:"];
-      blocks.forEach((block) => {
-        const games = Array.isArray(block.events) ? block.events.slice(0, 3).map((game) => formatRecentTeamGame(block, game)).join(", ") : "";
-        if (games) {
-          lines.push(`- ${block.team?.displayName || "Team"}: ${games}`);
-        }
-      });
-      return lines;
-    }
-
-    function formatGameStatsReply(mode, leagueLabel, event, summary) {
-      const competition = summary?.header?.competitions?.[0] || event?.competition || {};
-      const status = competition.status?.type || {};
-      const competitors = competition.competitors || getEventCompetitors(event);
-      const away = competitors.find((entry) => entry.homeAway === "away");
-      const home = competitors.find((entry) => entry.homeAway === "home");
-      const venue = summary?.gameInfo?.venue?.fullName || "";
-      const weather = summary?.gameInfo?.weather?.temperature != null
-        ? `${summary.gameInfo.weather.temperature}°F${summary.gameInfo.weather.gust != null ? `, gust ${summary.gameInfo.weather.gust} mph` : ""}${summary.gameInfo.weather.precipitation != null ? `, precip ${summary.gameInfo.weather.precipitation}` : ""}`
-        : "";
-      const lines = [];
-      lines.push(`${mode === "current" ? "Current" : "Past"} game stats${leagueLabel ? ` (${leagueLabel})` : ""}: ${away?.team?.shortDisplayName || "Away"} at ${home?.team?.shortDisplayName || "Home"}`);
-      lines.push(`Status: ${status.shortDetail || status.detail || "Unknown"}`);
-      lines.push(`Score: ${away?.team?.shortDisplayName || "Away"} ${away?.score ?? "?"} - ${home?.team?.shortDisplayName || "Home"} ${home?.score ?? "?"}`);
-      if (venue) lines.push(`Venue: ${venue}`);
-      if (weather) lines.push(`Weather: ${weather}`);
-      if (status.state === "in") {
-        const winprob = Array.isArray(summary?.winprobability) && summary.winprobability.length
-          ? summary.winprobability.map((entry) => `${entry.team?.shortDisplayName || entry.team?.displayName || "Team"} ${Math.round(Number(entry.probability || 0) * 100)}%`).join(" | ")
-          : "";
-        if (winprob) lines.push(`Live edge: ${winprob}`);
-      }
-      lines.push(...formatRecentForm(summary));
-      return lines.join("\n");
-    }
-
-    async function findGameStatsCandidate(text, mode) {
-      const teams = await findTeamsInTextAll(text);
-      const lower = String(text || "").toLowerCase();
-      const requestedLeagues = inferScheduleLeagues(text);
-      const leagueIds = requestedLeagues.length
-        ? requestedLeagues
-        : [...new Set(teams.map((team) => team.league?.league).filter(Boolean))];
-      const leagues = leagueIds.length
-        ? SCOREBOARD_LEAGUES.filter((league) => leagueIds.includes(league.league))
-        : SCOREBOARD_LEAGUES;
-      const dateCandidates = buildGameStatsDates(text, mode);
-
-      for (const date of dateCandidates) {
-        const dateKey = toLocalDateKey(date);
-        const results = await Promise.allSettled(leagues.map((league) => fetchScheduleForLeague(league, dateKey)));
-        const candidates = [];
-        results.forEach((result, index) => {
-          if (result.status !== "fulfilled") return;
-          result.value.forEach((event) => {
-            candidates.push({
-              league: leagues[index],
-              event,
-            });
-          });
-        });
-
-        const matched = candidates.filter(({ event }) => eventMatchesTeams(event, teams));
-        if (matched.length) {
-          const liveMatches = matched.filter(({ event }) => getEventStatus(event).state === "in");
-          const completedMatches = matched.filter(({ event }) => getEventStatus(event).completed);
-          const preferred = mode === "current"
-            ? liveMatches[0] || matched[0]
-            : completedMatches[0] || matched[0];
-          return preferred;
-        }
-
-        if (!teams.length) {
-          const live = candidates.find(({ event }) => getEventStatus(event).state === "in");
-          const completed = candidates.find(({ event }) => getEventStatus(event).completed);
-          if (mode === "current" && live) return live;
-          if (mode === "past" && completed) return completed;
-          if (candidates.length) return candidates[0];
-        }
-      }
-
-      if (!teams.length && lower.match(/(\bcurrent\b|\blive\b|\bnow\b|\breal time\b)/)) {
-        return null;
-      }
-      return null;
-    }
-
-    async function answerGameStatsQuery(text) {
-      const lower = String(text || "").toLowerCase();
-      const wantsCurrent = /(\bcurrent\b|\blive\b|\bnow\b|\breal time\b|\bin[- ]game\b|\bwhat's the score\b|\bwhats the score\b|\bscore update\b)/.test(lower);
-      const wantsPast = /(\bpast\b|\bprevious\b|\blast game\b|\bprevious game\b|\byesterday\b|\bfinal score\b|\bfinal\b)/.test(lower);
-      const modes = wantsCurrent && wantsPast ? ["current", "past"] : [wantsCurrent ? "current" : "past"];
-      state.statusLine = modes.length > 1 ? "Checking current and past game stats." : (modes[0] === "current" ? "Checking live game stats." : "Checking past game stats.");
-      render();
-
-      try {
-        const replies = [];
-        for (const mode of modes) {
-          const candidate = await findGameStatsCandidate(text, mode);
-          if (!candidate) {
-            replies.push(mode === "current"
-              ? "Current stats: I couldn't find a live game for that request. Add the team name or ask for today's slate."
-              : "Past stats: I couldn't find a completed game for that request. Add the team name or a date.");
-            continue;
-          }
-
-          const summary = await fetchMatchupBoxscore(candidate.event.id, candidate.league);
-          replies.push(formatGameStatsReply(mode, candidate.league.label, candidate.event, summary));
-        }
-
-        pushChat("assistant", replies.join("\n\n"), "assistant");
-        state.statusLine = "";
-      } catch (error) {
-        state.statusLine = "";
-        pushChat("assistant", `Could not load game stats: ${error.message}`, "system");
-      }
-
-      render();
-    }
-
-    function isHistoricalMatchupRequest(text) {
-      const lower = String(text || "").toLowerCase();
-      return /(\bhead to head\b|\bh2h\b|\blast time\b|\bprevious\b|\bpast matchup\b|\bmatchup stats\b|\bwho won last time\b|\bstats of\b|\bhow did\b.*\bagainst\b|\blast matchup\b|\bprevious matchup\b)/.test(lower);
-    }
-
-    function extractMatchupCandidates(text) {
-      const normalized = String(text || "")
-        .replace(/^[^a-z0-9]+/i, "")
-        .replace(/\b(last time|previous|past matchup|head to head|h2h|who won last time|matchup stats|stats of|how did|show me|tell me|what happened when)\b/ig, " ")
-        .replace(/\b(game|games|matchup|matchups|series|series history|history)\b/ig, " ")
-        .replace(/[?!.]+/g, " ")
-        .trim();
-
-      const separators = [
-        /\bvs\.?\b/i,
-        /\bv\.?\b/i,
-        /\bversus\b/i,
-        /\bagainst\b/i,
-        /\bplayed\b/i,
-        /\bplay\b/i,
-        /\bface(?:d|s)?\s+off\b/i,
-        /\bmeet(?:s|ing|ings)?\b/i,
-      ];
-
-      for (const separator of separators) {
-        if (separator.test(normalized)) {
-          const parts = normalized.split(separator).map((part) => part.trim()).filter(Boolean);
-          if (parts.length >= 2) {
-            return parts.slice(0, 2);
-          }
-        }
-      }
-
-      return normalized
-        .split(/\s+/)
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .slice(0, 2);
-    }
-
-    function scoreSportsDbTeamMatch(team, query) {
-      const q = normalizeToken(query);
-      const candidates = [
-        team.strTeam,
-        team.strTeamShort,
-        team.strTeamAlternate,
-        team.strLeague,
-        team.strSport,
-      ]
-        .map(normalizeToken)
-        .filter(Boolean);
-
-      let score = 0;
-      for (const candidate of candidates) {
-        if (!candidate) continue;
-        if (candidate === q) score = Math.max(score, 100);
-        else if (candidate.includes(q) || q.includes(candidate)) score = Math.max(score, 80 - Math.abs(candidate.length - q.length));
-      }
-      return score;
-    }
-
-    async function searchSportsDbTeam(query) {
-      const cleaned = String(query || "").trim();
-      if (!cleaned) return null;
-
-      const response = await fetch(`${THESPORTSDB_BASE}/searchteams.php?t=${encodeURIComponent(cleaned)}`, { mode: "cors" });
-      if (!response.ok) {
-        throw new Error(`Team search returned HTTP ${response.status}`);
-      }
-      const data = await response.json();
-      const teams = Array.isArray(data?.teams) ? data.teams : [];
-      if (!teams.length) return null;
-
-      teams.sort((a, b) => scoreSportsDbTeamMatch(b, cleaned) - scoreSportsDbTeamMatch(a, cleaned));
-      return teams[0];
-    }
-
-    function matchesSportsDbTeam(event, team) {
-      const home = normalizeToken(event?.strHomeTeam);
-      const away = normalizeToken(event?.strAwayTeam);
-      const name = normalizeToken(team?.strTeam);
-      const shortName = normalizeToken(team?.strTeamShort);
-      const alternate = normalizeToken(team?.strTeamAlternate);
-
-      return [home, away].some((value) => (
-        value === name ||
-        value === shortName ||
-        value === alternate ||
-        value.includes(name) ||
-        name.includes(value) ||
-        (shortName && value.includes(shortName))
-      ));
-    }
-
-    async function fetchSportsDbLastEvents(teamId) {
-      const response = await fetch(`${THESPORTSDB_BASE}/eventslast.php?id=${encodeURIComponent(teamId)}`, { mode: "cors" });
-      if (!response.ok) {
-        throw new Error(`Recent events returned HTTP ${response.status}`);
-      }
-      const data = await response.json();
-      return Array.isArray(data?.results) ? data.results : [];
-    }
-
-    function getBoxscoreStat(team, sectionName, statName) {
-      const section = team?.statistics?.find((entry) => normalizeToken(entry.name) === normalizeToken(sectionName));
-      const stat = section?.stats?.find((entry) => normalizeToken(entry.name) === normalizeToken(statName) || normalizeToken(entry.abbreviation) === normalizeToken(statName));
-      return stat?.displayValue ?? stat?.value ?? "";
-    }
-
-    function formatBoxscoreLine(team, sectionName) {
-      const runs = getBoxscoreStat(team, sectionName, "runs");
-      const hits = getBoxscoreStat(team, sectionName, "hits");
-      const errors = getBoxscoreStat(team, sectionName, "errors");
-      const homeRuns = getBoxscoreStat(team, sectionName, "homeRuns");
-      const strikeouts = getBoxscoreStat(team, sectionName, "strikeouts");
-      const parts = [];
-      if (runs !== "") parts.push(`R ${runs}`);
-      if (hits !== "") parts.push(`H ${hits}`);
-      if (errors !== "") parts.push(`E ${errors}`);
-      if (homeRuns !== "") parts.push(`HR ${homeRuns}`);
-      if (strikeouts !== "") parts.push(`K ${strikeouts}`);
-      return parts.join(" / ");
-    }
-
-    function displayScore(value) {
-      if (value == null || value === "") return "";
-      if (typeof value === "object") {
-        if (value.displayValue != null) return String(value.displayValue);
-        if (value.value != null) return String(value.value);
-      }
-      return String(value);
-    }
-
-    async function fetchMatchupBoxscore(eventId, league) {
-      const url = `https://site.api.espn.com/apis/site/v2/sports/${league.sport}/${league.league}/summary?event=${eventId}`;
-      const response = await fetch(url, { mode: "cors" });
-      if (!response.ok) {
-        throw new Error(`Matchup summary returned HTTP ${response.status}`);
-      }
-      return response.json();
-    }
-
-    async function answerHistoricalMatchup(text) {
-      const candidates = extractMatchupCandidates(text);
-      if (candidates.length < 2) {
-        pushChat("assistant", "I need two team names for a past matchup. Try: 'last time Padres played Phillies' or 'head to head Lakers vs Celtics'.", "system");
-        render();
+    function renderAnalysis() {
+      const analysis = state.analysis;
+      if (!analysis) {
+        DOM.analysisTitle.textContent = "Analysis";
+        DOM.analysisSub.textContent = "Waiting for input.";
+        DOM.summaryRow.innerHTML = "";
+        DOM.chartBand.innerHTML = '<div class="mini">Pick a ticker and run the model to see predictions.</div>';
+        DOM.horizonGrid.innerHTML = "";
+        DOM.newsFeed.innerHTML = '<div class="mini">Waiting for analysis.</div>';
+        DOM.secFeed.innerHTML = '<div class="mini">Waiting for analysis.</div>';
+        DOM.macroFeed.innerHTML = '<div class="mini">Waiting for analysis.</div>';
+        DOM.contextPanel.innerHTML = '<div class="mini">Run an analysis to load market context.</div>';
+        DOM.priceCaption.textContent = "No data yet.";
         return;
       }
 
-      const [firstPhrase, secondPhrase] = candidates;
-      state.statusLine = `Looking up past matchup history for ${firstPhrase} and ${secondPhrase}.`;
-      render();
+      DOM.analysisTitle.textContent = `${analysis.ticker} · ${analysis.name}`;
+      DOM.analysisSub.textContent = `${analysis.sector} · ${analysis.subIndustry}`;
+      DOM.priceCaption.textContent = `${fmtMoney(analysis.lastPrice)} · ${fmtSigned(analysis.changePct, 2)}% on the latest close · ${analysis.marketContext.regime}`;
+      DOM.summaryRow.innerHTML = [
+        renderMetric("Last price", fmtMoney(analysis.lastPrice), `Latest close for ${analysis.ticker}`),
+        renderMetric("Session change", `${fmtSigned(analysis.changePct, 2)}%`, "Latest daily move"),
+        renderMetric("SPY 5d", `${fmtSigned(analysis.marketContext.spy5d, 2)}%`, "Market regime context"),
+        renderMetric("VIX 5d", `${fmtSigned(analysis.marketContext.vix5d, 2)}%`, "Stress regime context"),
+      ].join("");
 
-      try {
-        const [firstTeam, secondTeam] = await Promise.all([
-          searchSportsDbTeam(firstPhrase),
-          searchSportsDbTeam(secondPhrase),
-        ]);
+      DOM.chartBand.innerHTML = `
+        <div class="chart-head">
+          <strong>Intraday sparkline</strong>
+          <span>Normalized last 30d 5m closes</span>
+        </div>
+        ${sparkline(analysis.charts.intraday, "#2cd4c6")}
+        <div class="chart-head">
+          <strong>Daily sparkline</strong>
+          <span>Normalized last 64 daily closes</span>
+        </div>
+        ${sparkline(analysis.charts.daily, "#55a6ff")}
+      `;
 
-        if (!firstTeam || !secondTeam) {
-          pushChat("assistant", "I could not resolve both teams. Try using more specific team names or abbreviations.", "system");
-          state.statusLine = "";
-          render();
-          return;
-        }
+      DOM.horizonGrid.innerHTML = [
+        horizonCard("Intraday", analysis.models.intraday, "Next 15 minutes"),
+        horizonCard("Daily", analysis.models.daily, "Next trading day"),
+        horizonCard("Weekly", analysis.models.weekly, "Next 5 trading days"),
+      ].join("");
 
-        const lastEvents = await fetchSportsDbLastEvents(firstTeam.idTeam);
-        const headToHead = lastEvents.filter((event) => matchesSportsDbTeam(event, secondTeam));
+      DOM.newsFeed.innerHTML = [
+        renderMetric("Burst 24h", String(analysis.events.news.burst24h), `Average tone ${analysis.events.news.avgTone}`),
+        analysis.events.news.headlines.length ? analysis.events.news.headlines.map((item) => `
+          <div class="feed-item">
+            <strong><a href="${escapeHtml(item.link)}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></strong>
+            <div class="meta">${fmtDate(item.pubDate)} · tone ${item.tone >= 0 ? "+" : ""}${item.tone.toFixed(0)}</div>
+          </div>
+        `).join("") : '<div class="mini">No recent headlines returned.</div>',
+      ].join("");
 
-        if (!headToHead.length) {
-          pushChat("assistant", `I could not find a recent head-to-head between ${firstTeam.strTeam} and ${secondTeam.strTeam}.`, "system");
-          state.statusLine = "";
-          render();
-          return;
-        }
+      DOM.secFeed.innerHTML = [
+        renderMetric("Filing score", analysis.events.sec.filingScore.toFixed(2), "Recent SEC activity"),
+        analysis.events.sec.recentFilings.length ? analysis.events.sec.recentFilings.map((item) => `
+          <div class="feed-item">
+            <strong>${escapeHtml(item.form)}</strong>
+            <div class="meta">${fmtDate(item.filedAt)} · ${item.daysAgo.toFixed(1)} days ago</div>
+          </div>
+        `).join("") : '<div class="mini">No recent filings in the last 7 days.</div>',
+      ].join("");
 
-        const latest = headToHead[0];
-        const summaryLines = [];
-        summaryLines.push(`Past matchup history: ${firstTeam.strTeam} vs ${secondTeam.strTeam}`);
-        summaryLines.push(`Found ${headToHead.length} recent meeting(s).`);
-        summaryLines.push("");
-        summaryLines.push(`Most recent: ${latest.strEvent}`);
-        summaryLines.push(`${latest.dateEvent || "Unknown date"} - ${latest.intHomeScore ?? "?"} to ${latest.intAwayScore ?? "?"}${latest.strVenue ? ` - ${latest.strVenue}` : ""}`);
-        if (latest.strResult) {
-          summaryLines.push("");
-          summaryLines.push(`Game notes: ${latest.strResult.replace(/<br\s*\/?>/gi, " | ").replace(/\s+/g, " ").trim()}`);
-        }
-        summaryLines.push("");
-        summaryLines.push("Recent meetings:");
-        headToHead.slice(0, 3).forEach((game) => {
-          summaryLines.push(`- ${game.dateEvent || "Unknown date"}: ${game.intHomeScore ?? "?"} to ${game.intAwayScore ?? "?"}${game.strVenue ? ` at ${game.strVenue}` : ""}`);
-        });
+      DOM.macroFeed.innerHTML = [
+        analysis.events.macro.nextFomc ? renderMetric("Next FOMC", `${analysis.events.macro.nextFomc.date}`, `${fmtDays(analysis.events.macro.nextFomc.daysAway)} away · penalty ${analysis.events.macro.penalty.toFixed(2)}`) : renderMetric("Next FOMC", "—", "No Fed meeting parsed"),
+        analysis.events.macro.nextFomc ? `<div class="feed-item"><strong>Market risk window</strong><div class="meta">Tighter around the next FOMC meeting and the days just before it.</div></div>` : '<div class="mini">No macro event parsed.</div>',
+      ].join("");
 
-        pushChat("assistant", summaryLines.join("\n"), "assistant");
-        state.statusLine = "";
-      } catch (error) {
-        state.statusLine = "";
-        pushChat("assistant", `Could not load matchup history: ${error.message}`, "system");
-      }
+      DOM.contextPanel.innerHTML = `
+        <div class="chips" style="margin-bottom:12px;">
+          <div class="chip">Regime: ${escapeHtml(analysis.marketContext.regime)}</div>
+          <div class="chip">Relative 5d: ${fmtSigned(analysis.marketContext.relative5d, 2)}%</div>
+          <div class="chip">Universe: S&amp;P 500</div>
+        </div>
+        <div class="mini">The model uses current price history, then shifts the score with the latest news burst, SEC filings, and macro timing. That keeps the output tied to what is happening now instead of only a stale backtest.</div>
+      `;
 
-      render();
+      DOM.updatedAt.textContent = new Date(analysis.meta.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      DOM.modelState.textContent = "Live";
     }
 
-    function formatScheduleReply(date, leagueResults) {
-      const groups = leagueResults.filter((entry) => entry.games.length);
-      const totalGames = groups.reduce((sum, entry) => sum + entry.games.length, 0);
+    function renderControls() {
+      DOM.universeCount.textContent = String(state.universe.length || 0);
+      DOM.selectedTicker.textContent = state.selected || "—";
+      DOM.tickerInput.value = state.selected || "";
+      DOM.analyzeBtn.disabled = state.loading;
+      DOM.modelState.textContent = state.loading ? "Working" : (state.analysis ? "Live" : "Idle");
+      DOM.universeHint.textContent = state.universe.length
+        ? `Loaded ${state.universe.length} current S&P 500 constituents.`
+        : "Loading constituents and sector data.";
+      DOM.controlError.style.display = state.error ? "block" : "none";
+      DOM.controlError.textContent = state.error || "";
+    }
 
-      if (!totalGames) {
-        return `No supported games found for ${toPrettyDate(date)}.`;
-      }
-
-      const lines = [`Games for ${toPrettyDate(date)} (${totalGames} total):`];
-      groups.forEach((entry) => {
-        lines.push("");
-        lines.push(`${entry.label}:`);
-        entry.games.slice(0, 8).forEach((game) => {
-          const time = game.start ? new Date(game.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : game.status;
-          const vegas = formatVegasLineEntry(game);
-          lines.push(`- ${time} — ${game.away} at ${game.home}${vegas ? ` | ${vegas}` : ""}`);
+    function renderQuickPicks() {
+      const picks = ["AAPL", "MSFT", "NVDA", "AMZN", "JPM", "XOM", "META", "GOOGL"];
+      const selected = picks
+        .map((symbol) => state.universe.find((entry) => entry.symbol === symbol))
+        .filter(Boolean)
+        .slice(0, 8);
+      DOM.quickPicks.innerHTML = selected.map((entry) => `
+        <button class="chip" type="button" data-symbol="${escapeHtml(entry.symbol)}">${escapeHtml(entry.symbol)}</button>
+      `).join("") || '<div class="mini">Loading quick picks.</div>';
+      DOM.quickPicks.querySelectorAll("[data-symbol]").forEach((button) => {
+        button.addEventListener("click", () => {
+          DOM.tickerInput.value = button.dataset.symbol;
+          runAnalysis(button.dataset.symbol);
         });
-        if (entry.games.length > 8) {
-          lines.push(`- ...and ${entry.games.length - 8} more`);
-        }
       });
-      return lines.join("\n");
     }
 
-    async function answerVegasLinesQuery(text) {
-      const date = parseRequestedDate(text);
-      const requestedLeagues = inferScheduleLeagues(text);
-      const leagues = requestedLeagues.length
-        ? SCOREBOARD_LEAGUES.filter((league) => requestedLeagues.includes(league.league))
-        : SCOREBOARD_LEAGUES;
-
-      state.statusLine = `Looking up Vegas lines for ${toPrettyDate(date)}.`;
-      render();
-
-      try {
-        const dateKey = toLocalDateKey(date);
-        const results = await Promise.allSettled(leagues.map((league) => fetchScheduleForLeague(league, dateKey)));
-        const lines = [`Vegas lines for ${toPrettyDate(date)}:`];
-        let found = 0;
-
-        results.forEach((result, index) => {
-          if (result.status !== "fulfilled") return;
-          const games = result.value.filter((game) => game.odds);
-          if (!games.length) return;
-          lines.push("");
-          lines.push(`${leagues[index].label}:`);
-          games.slice(0, 8).forEach((game) => {
-            lines.push(`- ${formatVegasLineEntry(game)}`);
-            found += 1;
-          });
-        });
-
-        if (!found) {
-          pushChat("assistant", `No Vegas lines were available for ${toPrettyDate(date)}.`, "system");
-        } else {
-          pushChat("assistant", lines.join("\n"), "assistant");
-        }
-        state.statusLine = "";
-      } catch (error) {
-        state.statusLine = "";
-        pushChat("assistant", `Could not load Vegas lines: ${error.message}`, "system");
-      }
-
-      render();
-    }
-
-    async function answerScheduleQuery(text) {
-      const date = parseRequestedDate(text);
-      const requestedLeagues = inferScheduleLeagues(text);
-      const leagues = requestedLeagues.length
-        ? SCOREBOARD_LEAGUES.filter((league) => requestedLeagues.includes(league.league))
-        : SCOREBOARD_LEAGUES;
-
-      state.statusLine = `Looking up games for ${toPrettyDate(date)}.`;
-      render();
-
-      try {
-        const dateKey = toLocalDateKey(date);
-        const results = await Promise.allSettled(leagues.map((league) => fetchScheduleForLeague(league, dateKey)));
-        const leagueResults = results.map((result, index) => ({
-          label: leagues[index].label,
-          games: result.status === "fulfilled" ? result.value : [],
-        })).filter((entry) => entry.games.length || requestedLeagues.length);
-
-        const summary = formatScheduleReply(date, leagueResults);
-        pushChat("assistant", summary, "assistant");
-        state.statusLine = "";
-      } catch (error) {
-        state.statusLine = "";
-        pushChat("assistant", `Could not load games for that date: ${error.message}`, "system");
-      }
-
-      render();
-    }
-
-    function buildGroqChatMessages(limit = 10) {
-      return state.chat
-        .slice()
-        .reverse()
-        .filter((item) => item.kind !== "system")
-        .slice(-limit)
-        .map((item) => ({
-          role: item.role === "assistant" ? "assistant" : "user",
-          content: item.text,
-        }));
-    }
-
-    async function answerGroqQuery() {
-      state.statusLine = "Thinking...";
-      render();
-
-      try {
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: buildGroqChatMessages(10) }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const errorMessage = data?.error || `HTTP ${response.status}`;
-          throw new Error(errorMessage);
-        }
-        pushChat("assistant", data.text || "I do not have a reply yet.", "assistant");
-      } catch (error) {
-        const fallback = error.message.includes("GROQ_API_KEY")
-          ? "Groq is not configured yet. I can still handle sports schedules, matchup history, and bet tracking locally."
-          : `Chat reply failed: ${error.message}`;
-        pushChat("assistant", fallback, "system");
-      } finally {
-        state.statusLine = "";
-        render();
-      }
-    }
-
-    function pushChat(role, text, kind = "") {
-      state.chat.unshift({
-        id: Date.now() + Math.random(),
-        role,
-        kind,
-        text,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      });
-      state.chat = state.chat.slice(0, 50);
-    }
-
-    function appendTranscript(text, source = "speech", confidence = null) {
-      const cleaned = String(text || "").trim();
-      if (!cleaned) return;
-      state.transcript.unshift({
-        id: ++transcriptId,
-        text: cleaned,
-        source,
-        confidence,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      });
-      state.transcript = state.transcript.slice(0, 40);
-      state.liveText = cleaned;
-      state.statusLine = "";
-      pushChat(source === "note" ? "note" : "user", cleaned, source);
-      if (!state.draft.note) state.draft.note = cleaned;
-      render();
-    }
-
-    function summarize(text) {
-      const analysis = detectSignals(text);
-      const hasContext = Boolean(
-        text ||
-        state.transcript.length ||
-        state.draft.note ||
-        state.draft.selection ||
-        state.draft.odds ||
-        state.draft.event
-      );
-      const signalScore = clamp(
-        hasContext
-          ? (
-            (text ? 25 : 0) +
-            (state.transcript.length ? 20 : 0) +
-            (state.draft.selection ? 15 : 0) +
-            (state.draft.odds ? 10 : 0) +
-            (state.draft.stake ? 10 : 0) +
-            (state.draft.event ? 10 : 0)
-          )
-          : 0,
-        0,
-        100
-      );
-      const confidence = hasContext ? clamp(20 + signalScore * 0.8, 0, 100) : 0;
-      DOM.signalScore.textContent = Math.round(signalScore);
-      DOM.confidenceScore.textContent = `${Math.round(confidence)}%`;
-      return { analysis, signalScore, confidence };
-    }
-
-    function renderChat() {
-      const items = state.chat.length ? state.chat.slice().reverse() : [{
-        id: "welcome",
-        role: "assistant",
-        kind: "system",
-        time: "",
-        text: "Drop in a call note or start listening. I will turn the transcript into a bet draft and strategy notes in the same chat.",
-      }];
-
-      DOM.messages.innerHTML = items.map((item) => `
-        <article class="bubble ${item.role} ${item.kind || ""}">
-          <div class="label">${item.role}${item.time ? ` · ${escapeHtml(item.time)}` : ""}</div>
-          <div class="text">${escapeHtml(item.text)}</div>
-        </article>
+    function renderUniverseList() {
+      DOM.universeList.innerHTML = state.universe.slice(0, 500).map((entry) => `
+        <option value="${escapeHtml(entry.symbol)}">${escapeHtml(entry.symbol)} — ${escapeHtml(entry.company)} — ${escapeHtml(entry.sector)}</option>
       `).join("");
     }
 
-    function renderBets() {
-      DOM.bets.innerHTML = state.bets.length ? state.bets.map((bet) => {
-        const active = ["draft", "open", "pending", "held"].includes(bet.status);
-        const tone = bet.status === "won" ? "good" : bet.status === "lost" ? "bad" : bet.status === "held" ? "warn" : "accent";
-        return `
-          <article class="bet-card">
-            <div class="bet-card-top">
-              <div>
-                <strong>${escapeHtml(bet.event || "Untitled event")}</strong>
-                <div class="mini">${escapeHtml(bet.market || "auto")} · ${escapeHtml(bet.category || "pre")} · ${escapeHtml(bet.time || "")}</div>
-              </div>
-              <div class="chips">
-                <span class="chip ${tone}">${escapeHtml(bet.status || "draft")}</span>
-                <span class="chip">${active ? "open" : "closed"}</span>
-              </div>
-            </div>
-            <div class="bet-grid">
-              <div class="kv"><span class="k">Selection</span><span class="v">${escapeHtml(bet.selection || "Not set")}</span></div>
-              <div class="kv"><span class="k">Odds</span><span class="v">${escapeHtml(bet.odds || "Not set")}</span></div>
-              <div class="kv"><span class="k">Stake</span><span class="v">${money(bet.stake)}</span></div>
-              <div class="kv"><span class="k">Book</span><span class="v">${escapeHtml(bet.book || "Not set")}</span></div>
-            </div>
-            <div class="mini">${escapeHtml(bet.note || "No note attached.")}</div>
-            <div class="row">
-              <button class="chip accent" data-load-bet="${bet.id}" type="button">Load</button>
-              <button class="chip" data-toggle-bet="${bet.id}" type="button">${active ? "Close" : "Open"}</button>
-              <button class="chip warn" data-remove-bet="${bet.id}" type="button">Remove</button>
-            </div>
-          </article>
-        `;
-      }).join("") : '<div class="bubble system"><div class="label">system</div><div class="text">No bets tracked yet. Draft one from the chat.</div></div>';
-
-      DOM.bets.querySelectorAll("[data-load-bet]").forEach((button) => {
-        button.addEventListener("click", () => {
-          const bet = state.bets.find((entry) => String(entry.id) === button.dataset.loadBet);
-          if (!bet) return;
-          state.draft = {
-            event: bet.event || "",
-            selection: bet.selection || "",
-            odds: bet.odds || "",
-            stake: bet.stake || 100,
-            note: bet.note || "",
-            book: bet.book || "",
-            category: bet.category || "pre",
-          };
-          state.market = bet.market || "";
-          DOM.betMarket.value = state.market;
-          syncDraftInputs();
-          state.draftStatus = "loaded";
-          pushChat("assistant", `Loaded bet draft for ${bet.event || "that play"}.`, "system");
-          render();
-        });
-      });
-
-      DOM.bets.querySelectorAll("[data-toggle-bet]").forEach((button) => {
-        button.addEventListener("click", () => {
-          const bet = state.bets.find((entry) => String(entry.id) === button.dataset.toggleBet);
-          if (!bet) return;
-          bet.status = bet.status === "open" ? "held" : "open";
-          pushChat("assistant", `${bet.event || "That bet"} is now marked ${bet.status}.`, "system");
-          render();
-        });
-      });
-
-      DOM.bets.querySelectorAll("[data-remove-bet]").forEach((button) => {
-        button.addEventListener("click", () => {
-          state.bets = state.bets.filter((entry) => String(entry.id) !== button.dataset.removeBet);
-          pushChat("assistant", "Removed the tracked bet.", "system");
-          render();
-        });
-      });
-    }
-
-    function syncDraftInputs() {
-      DOM.composerText.value = state.draft.note || "";
-      DOM.betMarket.value = state.market || "";
-      DOM.betStatus.value = state.draftStatus || "draft";
-      DOM.bankroll.value = state.bankroll;
-      DOM.unitSize.value = state.unitSize;
-    }
-
-    function pullDraftInputs() {
-      state.market = DOM.betMarket.value;
-      state.draftStatus = DOM.betStatus.value;
-      state.bankroll = Number(DOM.bankroll.value || 0);
-      state.unitSize = Number(DOM.unitSize.value || 0);
-      state.draft.note = DOM.composerText.value.trim();
-    }
-
-    function updateHeader() {
-      DOM.micState.textContent = state.listening ? "listening" : "idle";
-      DOM.openCount.textContent = state.bets.filter((bet) => ["draft", "open", "pending", "held"].includes(bet.status)).length;
-      DOM.betCountFold.textContent = state.bets.length;
-      DOM.exposureTotal.textContent = money(state.bets.filter((bet) => ["draft", "open", "pending", "held"].includes(bet.status)).reduce((sum, bet) => sum + Number(bet.stake || 0), 0));
-      DOM.statusTitle.textContent = state.listening ? "Listening" : "Ready";
-      DOM.draftState.textContent = state.draft.selection ? "Draft ready" : "Idle";
-      DOM.voicePanel.classList.toggle("listening", state.listening);
-      DOM.listenBtn.disabled = state.listening;
-      DOM.stopBtn.disabled = !state.listening;
-      DOM.voiceMeterFill.style.width = state.listening ? "88%" : "20%";
-      DOM.liveHint.textContent = state.statusLine || state.liveText || "No transcript yet.";
-    }
-
-    function render() {
-      pullDraftInputs();
-      const summary = summarize(state.liveText || getLatestTranscript());
-      renderChat();
-      renderBets();
-      updateHeader();
-      saveState();
-    }
-
-    function getLatestTranscript() {
-      return state.transcript[0]?.text || "";
-    }
-
-    function draftLatest() {
-      const text = state.liveText || getLatestTranscript() || DOM.composerText.value.trim();
-      if (!text) {
-        pushChat("assistant", "I need a call note or transcript before I can draft a bet.", "system");
-        render();
-        return;
-      }
-      state.draft = draftFromText(text);
-      DOM.betMarket.value = state.market || (state.draft.category === "live" ? "live" : "");
-      DOM.composerText.value = state.draft.note;
-      state.draftStatus = "draft";
-      pushChat("assistant", `Drafted a bet from the latest transcript:\n${state.draft.selection || "Selection not fully specified"} ${state.draft.odds ? `at ${state.draft.odds}` : ""}.`, "assistant");
-      render();
-    }
-
-    function addNote() {
-      const text = DOM.composerText.value.trim();
-      if (!text) return;
-      appendTranscript(text, "note");
-      DOM.composerText.value = "";
-      render();
-    }
-
-    async function sendMessage() {
-      const text = DOM.composerText.value.trim();
-      if (!text) return;
-      appendTranscript(text, "note");
-      DOM.composerText.value = "";
-      if (isVegasLinesRequest(text)) {
-        await answerVegasLinesQuery(text);
-        return;
-      }
-      if (isGameStatsRequest(text)) {
-        await answerGameStatsQuery(text);
-        return;
-      }
-      if (isHistoricalMatchupRequest(text)) {
-        await answerHistoricalMatchup(text);
-        return;
-      }
-      if (isScheduleRequest(text)) {
-        await answerScheduleQuery(text);
-        return;
-      }
-      await answerGroqQuery();
-    }
-
-    function saveBet() {
-      const latest = state.liveText || getLatestTranscript() || DOM.composerText.value.trim();
-      if (!state.draft.selection && latest) state.draft = draftFromText(latest);
-      const bet = {
-        id: ++betId,
-        event: state.draft.event || "Untitled event",
-        market: marketLabel(state.market, state.draft),
-        selection: state.draft.selection || "Not set",
-        odds: state.draft.odds || "",
-        stake: Number(state.draft.stake || state.unitSize || 0),
-        book: state.draft.book || "",
-        status: state.draftStatus || "draft",
-        category: state.draft.category || "pre",
-        note: state.draft.note || latest || "",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      };
-      state.bets.unshift(bet);
-      pushChat("assistant", `Tracked bet: ${bet.event} | ${bet.selection} ${bet.odds ? `(${bet.odds})` : ""}.`, "assistant");
-      pushChat("assistant", `Strategy: keep stake sizing inside ${money(state.unitSize)} units and verify the latest line before entry.`, "system");
-      state.draftStatus = "open";
-      render();
-    }
-
-    function clearAll() {
-      state.chat = [];
-      state.transcript = [];
-      state.liveText = "";
-      state.interimText = "";
-      state.statusLine = "";
-      pushChat("assistant", "Chat cleared. Start a new call note or hit Listen.", "system");
-      render();
-    }
-
-    function resetDraft() {
-      state.draft = clone(DEFAULT_STATE.draft);
-      state.market = "";
-      state.draftStatus = "draft";
-      state.statusLine = "";
-      DOM.betMarket.value = "";
-      DOM.betStatus.value = "draft";
-      DOM.composerText.value = "";
-      pushChat("assistant", "Draft reset.", "system");
-      render();
-    }
-
-    function useLatest() {
-      const text = state.liveText || getLatestTranscript();
-      if (!text) {
-        pushChat("assistant", "Nothing to use yet. Listen to the call or paste a note first.", "system");
-        render();
-        return;
-      }
-      state.draft.note = text;
-      DOM.composerText.value = text;
-      draftLatest();
-    }
-
-    function startListening() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        pushChat("assistant", "This browser does not support speech recognition. Paste the call text instead.", "system");
-        render();
-        return;
-      }
-      if (!recognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
-
-        recognition.onstart = () => {
-          state.listening = true;
-          state.statusLine = "Listening for the call.";
-          render();
-        };
-
-        recognition.onend = () => {
-          state.listening = false;
-          state.interimText = "";
-          render();
-        };
-
-        recognition.onerror = (event) => {
-          state.listening = false;
-          const message = speechErrorCopy(event.error);
-          state.liveText = "";
-          state.interimText = "";
-          state.statusLine = message;
-          if (recognition && event.error !== "aborted") {
-            try { recognition.abort(); } catch {}
-          }
-          render();
-        };
-
-        recognition.onresult = (event) => {
-          let interim = "";
-          for (let i = event.resultIndex; i < event.results.length; i += 1) {
-            const result = event.results[i];
-            const text = result[0].transcript.trim();
-            if (result.isFinal) {
-              appendTranscript(text, "speech", result[0].confidence || null);
-            } else {
-              interim += `${text} `;
-            }
-          }
-          state.interimText = interim.trim();
-          state.liveText = state.interimText || state.liveText;
-          DOM.liveHint.textContent = state.interimText || state.liveText || "Listening...";
-          render();
-        };
-      }
-
+    async function loadUniverse() {
       try {
-        recognition.start();
-      } catch {
-        recognition.stop();
-        recognition.start();
+        const response = await fetch("/api/universe?limit=500");
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        state.universe = Array.isArray(data.results) ? data.results : [];
+        renderControls();
+        renderQuickPicks();
+        renderUniverseList();
+        if (!state.selected) state.selected = state.universe[0]?.symbol || "AAPL";
+      } catch (error) {
+        state.error = `Universe load failed: ${error.message}`;
+        renderControls();
       }
     }
 
-    function stopListening() {
-      if (!recognition) return;
-      recognition.stop();
-      state.listening = false;
-      state.interimText = "";
-      state.statusLine = "Listening stopped.";
-      render();
+    async function runAnalysis(symbol) {
+      const ticker = String(symbol || DOM.tickerInput.value || "").trim().toUpperCase();
+      if (!ticker) return;
+      state.selected = ticker;
+      state.loading = true;
+      state.error = "";
+      renderControls();
+      DOM.analyzeBtn.textContent = "Running...";
+      try {
+        const response = await fetch(`/api/analyze?ticker=${encodeURIComponent(ticker)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        state.analysis = data;
+        renderAnalysis();
+      } catch (error) {
+        state.error = error.message || "Analysis failed.";
+        renderControls();
+      } finally {
+        state.loading = false;
+        DOM.analyzeBtn.textContent = "Analyze";
+        renderControls();
+      }
     }
 
-    function attach() {
-      DOM.appRoot = document.getElementById("appRoot");
-      DOM.voicePanel = document.getElementById("voicePanel");
-      DOM.messages = document.getElementById("messages");
-      DOM.bets = document.getElementById("bets");
-      DOM.listenBtn = document.getElementById("listenBtn");
-      DOM.stopBtn = document.getElementById("stopBtn");
-      DOM.sendBtn = document.getElementById("sendBtn");
-      DOM.noteBtn = document.getElementById("noteBtn");
-      DOM.draftBtn = document.getElementById("draftBtn");
-      DOM.clearBtn = document.getElementById("clearBtn");
-      DOM.latestBtn = document.getElementById("latestBtn");
-      DOM.addBetBtn = document.getElementById("addBetBtn");
-      DOM.resetDraftBtn = document.getElementById("resetDraftBtn");
-      DOM.composerText = document.getElementById("composerText");
-      DOM.bankroll = document.getElementById("bankroll");
-      DOM.unitSize = document.getElementById("unitSize");
-      DOM.betStatus = document.getElementById("betStatusFilter");
-      DOM.betMarket = document.getElementById("betMarket");
-      DOM.micState = document.getElementById("micState");
-      DOM.openCount = document.getElementById("openCount");
-      DOM.exposureTotal = document.getElementById("exposureTotal");
-      DOM.statusTitle = document.getElementById("statusTitle");
-      DOM.draftState = document.getElementById("draftState");
-      DOM.signalScore = document.getElementById("signalScore");
-      DOM.confidenceScore = document.getElementById("confidenceScore");
-      DOM.betCountFold = document.getElementById("betCountFold");
-      DOM.voiceMeterFill = document.getElementById("voiceMeter");
-      DOM.liveHint = document.getElementById("liveHint");
-      DOM.rateHint = document.getElementById("rateHint");
-
-      DOM.listenBtn.addEventListener("click", startListening);
-      DOM.stopBtn.addEventListener("click", stopListening);
-      DOM.sendBtn.addEventListener("click", sendMessage);
-      DOM.noteBtn.addEventListener("click", addNote);
-      DOM.draftBtn.addEventListener("click", draftLatest);
-      DOM.clearBtn.addEventListener("click", clearAll);
-      DOM.latestBtn.addEventListener("click", useLatest);
-      DOM.addBetBtn.addEventListener("click", saveBet);
-      DOM.resetDraftBtn.addEventListener("click", resetDraft);
-
-      DOM.composerText.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" && !event.shiftKey) {
+    function wireEvents() {
+      DOM.analyzeBtn.addEventListener("click", () => runAnalysis());
+      DOM.tickerInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
           event.preventDefault();
-          sendMessage();
+          runAnalysis();
         }
       });
-
-      [DOM.bankroll, DOM.unitSize, DOM.betStatus, DOM.betMarket].forEach((el) => {
-        el.addEventListener("change", () => {
-          render();
-        });
-      });
-
-      DOM.composerText.addEventListener("input", () => {
-        state.draft.note = DOM.composerText.value;
-        DOM.draftState.textContent = DOM.composerText.value.trim() ? "Typing" : "Idle";
+      DOM.tickerInput.addEventListener("input", () => {
+        state.selected = String(DOM.tickerInput.value || "").trim().toUpperCase();
+        renderControls();
       });
     }
 
-    function populate() {
-      DOM.bankroll.value = state.bankroll;
-      DOM.unitSize.value = state.unitSize;
-      DOM.betStatus.value = state.draftStatus;
-      DOM.betMarket.value = state.market;
-      DOM.composerText.value = state.draft.note || "";
-      if (!state.chat.length) {
-        state.chat = [{
-          id: "welcome",
-          role: "assistant",
-          kind: "system",
-          time: "",
-          text: "Use Listen to capture the call, then Draft bet to convert the latest transcript into a tracked play.",
-        }];
-      }
-      render();
+    function initDom() {
+      DOM.universeCount = document.getElementById("universeCount");
+      DOM.selectedTicker = document.getElementById("selectedTicker");
+      DOM.updatedAt = document.getElementById("updatedAt");
+      DOM.modelState = document.getElementById("modelState");
+      DOM.analysisTitle = document.getElementById("analysisTitle");
+      DOM.analysisSub = document.getElementById("analysisSub");
+      DOM.tickerInput = document.getElementById("tickerInput");
+      DOM.analyzeBtn = document.getElementById("analyzeBtn");
+      DOM.universeList = document.getElementById("universeList");
+      DOM.quickPicks = document.getElementById("quickPicks");
+      DOM.universeHint = document.getElementById("universeHint");
+      DOM.controlError = document.getElementById("controlError");
+      DOM.summaryRow = document.getElementById("summaryRow");
+      DOM.chartBand = document.getElementById("chartBand");
+      DOM.horizonGrid = document.getElementById("horizonGrid");
+      DOM.newsFeed = document.getElementById("newsFeed");
+      DOM.secFeed = document.getElementById("secFeed");
+      DOM.macroFeed = document.getElementById("macroFeed");
+      DOM.contextPanel = document.getElementById("contextPanel");
+      DOM.priceCaption = document.getElementById("priceCaption");
     }
 
-    attach();
-    populate();
+    (async function boot() {
+      initDom();
+      wireEvents();
+      renderControls();
+      await loadUniverse();
+      DOM.tickerInput.value = "AAPL";
+      state.selected = "AAPL";
+      renderControls();
+      await runAnalysis("AAPL");
+    })();
   </script>
 </body>
 </html>
