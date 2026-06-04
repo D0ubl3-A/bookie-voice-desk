@@ -629,6 +629,7 @@
     ];
 
     const MLB_LEAGUE = SCOREBOARD_LEAGUES[0];
+    const THESPORTSDB_BASE = "https://www.thesportsdb.com/api/v1/json/123";
     const MLB_TEAM_INDEX = [
       { id: "29", displayName: "Arizona Diamondbacks", shortDisplayName: "Diamondbacks", abbreviation: "ARI", aliases: ["arizona diamondbacks", "diamondbacks", "dbacks", "ari"] },
       { id: "11", displayName: "Athletics", shortDisplayName: "Athletics", abbreviation: "ATH", aliases: ["athletics", "oakland athletics", "ath", "a's"] },
@@ -995,6 +996,104 @@
       return /(\bhead to head\b|\bh2h\b|\blast time\b|\bprevious\b|\bpast matchup\b|\bmatchup stats\b|\bwho won last time\b|\bstats of\b|\bhow did\b.*\bagainst\b|\blast matchup\b|\bprevious matchup\b)/.test(lower);
     }
 
+    function extractMatchupCandidates(text) {
+      const normalized = String(text || "")
+        .replace(/^[^a-z0-9]+/i, "")
+        .replace(/\b(last time|previous|past matchup|head to head|h2h|who won last time|matchup stats|stats of|how did|show me|tell me|what happened when)\b/ig, " ")
+        .replace(/\b(game|games|matchup|matchups|series|series history|history)\b/ig, " ")
+        .replace(/[?!.]+/g, " ")
+        .trim();
+
+      const separators = [
+        /\bvs\.?\b/i,
+        /\bv\.?\b/i,
+        /\bversus\b/i,
+        /\bagainst\b/i,
+        /\bplayed\b/i,
+        /\bplay\b/i,
+        /\bface(?:d|s)?\s+off\b/i,
+        /\bmeet(?:s|ing|ings)?\b/i,
+      ];
+
+      for (const separator of separators) {
+        if (separator.test(normalized)) {
+          const parts = normalized.split(separator).map((part) => part.trim()).filter(Boolean);
+          if (parts.length >= 2) {
+            return parts.slice(0, 2);
+          }
+        }
+      }
+
+      return normalized
+        .split(/\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .slice(0, 2);
+    }
+
+    function scoreSportsDbTeamMatch(team, query) {
+      const q = normalizeToken(query);
+      const candidates = [
+        team.strTeam,
+        team.strTeamShort,
+        team.strTeamAlternate,
+        team.strLeague,
+        team.strSport,
+      ]
+        .map(normalizeToken)
+        .filter(Boolean);
+
+      let score = 0;
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        if (candidate === q) score = Math.max(score, 100);
+        else if (candidate.includes(q) || q.includes(candidate)) score = Math.max(score, 80 - Math.abs(candidate.length - q.length));
+      }
+      return score;
+    }
+
+    async function searchSportsDbTeam(query) {
+      const cleaned = String(query || "").trim();
+      if (!cleaned) return null;
+
+      const response = await fetch(`${THESPORTSDB_BASE}/searchteams.php?t=${encodeURIComponent(cleaned)}`, { mode: "cors" });
+      if (!response.ok) {
+        throw new Error(`Team search returned HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      const teams = Array.isArray(data?.teams) ? data.teams : [];
+      if (!teams.length) return null;
+
+      teams.sort((a, b) => scoreSportsDbTeamMatch(b, cleaned) - scoreSportsDbTeamMatch(a, cleaned));
+      return teams[0];
+    }
+
+    function matchesSportsDbTeam(event, team) {
+      const home = normalizeToken(event?.strHomeTeam);
+      const away = normalizeToken(event?.strAwayTeam);
+      const name = normalizeToken(team?.strTeam);
+      const shortName = normalizeToken(team?.strTeamShort);
+      const alternate = normalizeToken(team?.strTeamAlternate);
+
+      return [home, away].some((value) => (
+        value === name ||
+        value === shortName ||
+        value === alternate ||
+        value.includes(name) ||
+        name.includes(value) ||
+        (shortName && value.includes(shortName))
+      ));
+    }
+
+    async function fetchSportsDbLastEvents(teamId) {
+      const response = await fetch(`${THESPORTSDB_BASE}/eventslast.php?id=${encodeURIComponent(teamId)}`, { mode: "cors" });
+      if (!response.ok) {
+        throw new Error(`Recent events returned HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      return Array.isArray(data?.results) ? data.results : [];
+    }
+
     function getBoxscoreStat(team, sectionName, statName) {
       const section = team?.statistics?.find((entry) => normalizeToken(entry.name) === normalizeToken(sectionName));
       const stat = section?.stats?.find((entry) => normalizeToken(entry.name) === normalizeToken(statName) || normalizeToken(entry.abbreviation) === normalizeToken(statName));
@@ -1035,91 +1134,58 @@
     }
 
     async function answerHistoricalMatchup(text) {
-      const teams = findTeamsInText(text);
-      if (teams.length < 2) {
+      const candidates = extractMatchupCandidates(text);
+      if (candidates.length < 2) {
         pushChat("assistant", "I need two team names for a past matchup. Try: 'last time Padres played Phillies' or 'head to head Lakers vs Celtics'.", "system");
         render();
         return;
       }
 
-      const [first, second] = teams;
-      if (first.league?.league !== second.league?.league) {
-        pushChat("assistant", "I found teams from different leagues. Ask with two teams from the same league so I can pull the matchup history.", "system");
-        render();
-        return;
-      }
-
-      state.statusLine = `Looking up past matchups: ${first.displayName} vs ${second.displayName}.`;
+      const [firstPhrase, secondPhrase] = candidates;
+      state.statusLine = `Looking up past matchup history for ${firstPhrase} and ${secondPhrase}.`;
       render();
 
       try {
-        const [scheduleA, scheduleB] = await Promise.all([
-          fetch(`https://site.api.espn.com/apis/site/v2/sports/${first.league.sport}/${first.league.league}/teams/${first.id}/schedule`, { mode: "cors" }).then((res) => {
-            if (!res.ok) throw new Error(`Team schedule returned HTTP ${res.status}`);
-            return res.json();
-          }),
-          fetch(`https://site.api.espn.com/apis/site/v2/sports/${second.league.sport}/${second.league.league}/teams/${second.id}/schedule`, { mode: "cors" }).then((res) => {
-            if (!res.ok) throw new Error(`Team schedule returned HTTP ${res.status}`);
-            return res.json();
-          }),
+        const [firstTeam, secondTeam] = await Promise.all([
+          searchSportsDbTeam(firstPhrase),
+          searchSportsDbTeam(secondPhrase),
         ]);
 
-        const gamesA = scheduleA?.events || [];
-        const gamesB = scheduleB?.events || [];
-        const idsB = new Set(gamesB.map((event) => event.id));
-        const headToHead = gamesA
-          .filter((event) => idsB.has(event.id))
-          .map((event) => {
-            const competition = event.competitions?.[0] || {};
-            const competitors = competition.competitors || [];
-            const firstSide = competitors.find((entry) => String(entry.team?.id) === String(first.id)) || {};
-            const secondSide = competitors.find((entry) => String(entry.team?.id) === String(second.id)) || {};
-            return {
-              id: event.id,
-              name: event.shortName || event.name || `${first.shortDisplayName} vs ${second.shortDisplayName}`,
-              date: event.date || competition.date || "",
-              status: competition.status?.type?.shortDetail || competition.status?.type?.description || "Scheduled",
-              venue: competition.venue?.fullName || "",
-              firstScore: displayScore(firstSide.score),
-              secondScore: displayScore(secondSide.score),
-              isFinal: competition.status?.type?.state === "post",
-            };
-          })
-          .filter((game) => game.isFinal)
-          .sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (!firstTeam || !secondTeam) {
+          pushChat("assistant", "I could not resolve both teams. Try using more specific team names or abbreviations.", "system");
+          state.statusLine = "";
+          render();
+          return;
+        }
+
+        const lastEvents = await fetchSportsDbLastEvents(firstTeam.idTeam);
+        const headToHead = lastEvents.filter((event) => matchesSportsDbTeam(event, secondTeam));
 
         if (!headToHead.length) {
-          pushChat("assistant", `I could not find a completed past matchup between ${first.shortDisplayName} and ${second.shortDisplayName}.`, "system");
+          pushChat("assistant", `I could not find a recent head-to-head between ${firstTeam.strTeam} and ${secondTeam.strTeam}.`, "system");
           state.statusLine = "";
           render();
           return;
         }
 
         const latest = headToHead[0];
-        let summaryText = `Past matchup history: ${first.shortDisplayName} vs ${second.shortDisplayName}\n`;
-        summaryText += `Found ${headToHead.length} completed meeting(s).\n\n`;
-        summaryText += `Most recent: ${latest.name}\n`;
-        summaryText += `${new Date(latest.date).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })} - ${latest.firstScore} to ${latest.secondScore}${latest.venue ? ` - ${latest.venue}` : ""}\n`;
-
-        try {
-          const boxscore = await fetchMatchupBoxscore(latest.id, first.league);
-          const teams = boxscore?.boxscore?.teams || [];
-          const firstBox = teams.find((team) => String(team.team?.id) === String(first.id));
-          const secondBox = teams.find((team) => String(team.team?.id) === String(second.id));
-          if (firstBox && secondBox) {
-            summaryText += `\nBox score:`;
-            summaryText += `\n- ${first.shortDisplayName}: ${formatBoxscoreLine(firstBox, "Batting")} | ${formatBoxscoreLine(firstBox, "Pitching")} | ${formatBoxscoreLine(firstBox, "Fielding")}`;
-            summaryText += `\n- ${second.shortDisplayName}: ${formatBoxscoreLine(secondBox, "Batting")} | ${formatBoxscoreLine(secondBox, "Pitching")} | ${formatBoxscoreLine(secondBox, "Fielding")}`;
-          }
-        } catch {}
-
-        summaryText += `\n\nRecent meetings:`;
+        const summaryLines = [];
+        summaryLines.push(`Past matchup history: ${firstTeam.strTeam} vs ${secondTeam.strTeam}`);
+        summaryLines.push(`Found ${headToHead.length} recent meeting(s).`);
+        summaryLines.push("");
+        summaryLines.push(`Most recent: ${latest.strEvent}`);
+        summaryLines.push(`${latest.dateEvent || "Unknown date"} - ${latest.intHomeScore ?? "?"} to ${latest.intAwayScore ?? "?"}${latest.strVenue ? ` - ${latest.strVenue}` : ""}`);
+        if (latest.strResult) {
+          summaryLines.push("");
+          summaryLines.push(`Game notes: ${latest.strResult.replace(/<br\s*\/?>/gi, " | ").replace(/\s+/g, " ").trim()}`);
+        }
+        summaryLines.push("");
+        summaryLines.push("Recent meetings:");
         headToHead.slice(0, 3).forEach((game) => {
-          const played = game.date ? new Date(game.date).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) : "Unknown date";
-          summaryText += `\n- ${played}: ${game.firstScore} to ${game.secondScore}${game.venue ? ` at ${game.venue}` : ""}`;
+          summaryLines.push(`- ${game.dateEvent || "Unknown date"}: ${game.intHomeScore ?? "?"} to ${game.intAwayScore ?? "?"}${game.strVenue ? ` at ${game.strVenue}` : ""}`);
         });
 
-        pushChat("assistant", summaryText, "assistant");
+        pushChat("assistant", summaryLines.join("\n"), "assistant");
         state.statusLine = "";
       } catch (error) {
         state.statusLine = "";
