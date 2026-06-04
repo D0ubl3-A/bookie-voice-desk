@@ -1,0 +1,12 @@
+app/
+lib/
+docs/
+__pycache__/
+node_modules/
+*.py
+package.json
+next.config.mjs
+ui.py
+build_agent_search.py
+dist/
+out/

@@ -1,0 +1,14 @@
+.vercel
+node_modules/
+__pycache__/
+docs/
+*.py
+*.pyc
+*.log
+dist/
+out/
+app/
+lib/
+.vercel/
+package-lock.json
+.DS_Store
