@@ -492,7 +492,7 @@
       <div class="brand">
         <p class="eyebrow">Bookie Voice Desk</p>
         <h1>One chat window for the call, the bet, and the strategy.</h1>
-        <p class="lede">Listen to the game audio, turn the transcript into notes, and keep a live bet record without the dashboard clutter.</p>
+        <p class="lede">Ask naturally, get sports schedules or matchup history, and keep a live bet record without the dashboard clutter.</p>
       </div>
       <div class="statusrow">
         <div class="pill">Mic <strong id="micState">idle</strong></div>
@@ -507,7 +507,7 @@
           <div class="chat-head">
             <div class="meta">
               <strong>Chat</strong>
-              <span>Speak, paste, or type what you hear. Ask for today's games, tomorrow's slate, or any date and the assistant will list matchups.</span>
+              <span>Type naturally, paste a note, or speak. Ask for today's games, tomorrow's slate, a matchup history, or anything else.</span>
             </div>
             <div class="actions">
               <button class="btn btn-primary" id="listenBtn" type="button">▶ Listen</button>
@@ -532,7 +532,7 @@
           </div>
 
           <div class="input-wrap">
-            <textarea id="composerText" placeholder="Type a question or call note, or ask: what games are today, tomorrow, or on 2026-06-05? last time Padres played Phillies?"></textarea>
+            <textarea id="composerText" placeholder="Ask anything. Try: what games are today, last time Padres played Phillies, or a general question."></textarea>
             <div class="mini">Type here and press Enter to send. Shift+Enter makes a new line.</div>
             <div class="row">
               <button class="btn btn-secondary" id="sendBtn" type="button">Send</button>
@@ -1248,6 +1248,47 @@
       render();
     }
 
+    function buildOpenAIChatMessages(limit = 10) {
+      return state.chat
+        .slice()
+        .reverse()
+        .filter((item) => item.kind !== "system")
+        .slice(-limit)
+        .map((item) => ({
+          role: item.role === "assistant" ? "assistant" : "user",
+          content: item.text,
+        }));
+    }
+
+    async function answerOpenAIQuery() {
+      state.statusLine = "Thinking...";
+      render();
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: buildOpenAIChatMessages(10) }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const errorMessage = data?.error?.code === "insufficient_quota"
+            ? "OpenAI quota is exhausted on the configured key."
+            : (data.error || `HTTP ${response.status}`);
+          throw new Error(errorMessage);
+        }
+        pushChat("assistant", data.text || "I do not have a reply yet.", "assistant");
+      } catch (error) {
+        const fallback = error.message.includes("quota")
+          ? "OpenAI is configured, but the current key has no quota. I can still handle sports schedules, matchup history, and bet tracking locally."
+          : `Chat reply failed: ${error.message}`;
+        pushChat("assistant", fallback, "system");
+      } finally {
+        state.statusLine = "";
+        render();
+      }
+    }
+
     function pushChat(role, text, kind = "") {
       state.chat.unshift({
         id: Date.now() + Math.random(),
@@ -1476,13 +1517,7 @@
         await answerScheduleQuery(text);
         return;
       }
-      const analysis = detectSignals(text);
-      pushChat(
-        "assistant",
-        `Quick read:\n- ${analysis.notes[0]}\n- ${analysis.flags[0]}\n- ${analysis.next[0]}`,
-        "assistant"
-      );
-      render();
+      await answerOpenAIQuery();
     }
 
     function saveBet() {
