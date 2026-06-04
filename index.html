@@ -646,7 +646,23 @@
     }
 
     function money(value) {
-      return `$${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+      const amount = Number(value || 0);
+      return `$${amount.toLocaleString(undefined, {
+        minimumFractionDigits: Number.isInteger(amount) ? 0 : 1,
+        maximumFractionDigits: 2,
+      })}`;
+    }
+
+    function marketLabel(value, draft = null) {
+      if (value) return value;
+      if (!draft) return "auto";
+      const text = `${draft.selection || ""} ${draft.note || ""}`.toLowerCase();
+      if (/\blive\b|in[- ]game|halftime/.test(text)) return "live";
+      if (/\bover\b|\bunder\b|\btotal\b/.test(text)) return "total";
+      if (/\bprop\b/.test(text)) return "prop";
+      if (/\bmoneyline\b|\bml\b/.test(text)) return "moneyline";
+      if (/\bspread\b|\bpickem\b|\bline\b/.test(text)) return "spread";
+      return "auto";
     }
 
     function clamp(value, min, max) {
@@ -966,7 +982,7 @@
       const bet = {
         id: ++betId,
         event: state.draft.event || "Untitled event",
-        market: state.market || state.draft.category || "auto",
+        market: marketLabel(state.market, state.draft),
         selection: state.draft.selection || "Not set",
         odds: state.draft.odds || "",
         stake: Number(state.draft.stake || state.unitSize || 0),
