@@ -1248,7 +1248,7 @@
       render();
     }
 
-    function buildOpenAIChatMessages(limit = 10) {
+    function buildGroqChatMessages(limit = 10) {
       return state.chat
         .slice()
         .reverse()
@@ -1260,7 +1260,7 @@
         }));
     }
 
-    async function answerOpenAIQuery() {
+    async function answerGroqQuery() {
       state.statusLine = "Thinking...";
       render();
 
@@ -1268,19 +1268,17 @@
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: buildOpenAIChatMessages(10) }),
+          body: JSON.stringify({ messages: buildGroqChatMessages(10) }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          const errorMessage = data?.error?.code === "insufficient_quota"
-            ? "OpenAI quota is exhausted on the configured key."
-            : (data.error || `HTTP ${response.status}`);
+          const errorMessage = data?.error || `HTTP ${response.status}`;
           throw new Error(errorMessage);
         }
         pushChat("assistant", data.text || "I do not have a reply yet.", "assistant");
       } catch (error) {
-        const fallback = error.message.includes("quota")
-          ? "OpenAI is configured, but the current key has no quota. I can still handle sports schedules, matchup history, and bet tracking locally."
+        const fallback = error.message.includes("GROQ_API_KEY")
+          ? "Groq is not configured yet. I can still handle sports schedules, matchup history, and bet tracking locally."
           : `Chat reply failed: ${error.message}`;
         pushChat("assistant", fallback, "system");
       } finally {
@@ -1517,7 +1515,7 @@
         await answerScheduleQuery(text);
         return;
       }
-      await answerOpenAIQuery();
+      await answerGroqQuery();
     }
 
     function saveBet() {
