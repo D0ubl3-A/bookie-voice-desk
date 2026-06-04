@@ -507,7 +507,7 @@
           <div class="chat-head">
             <div class="meta">
               <strong>Chat</strong>
-              <span>Speak, paste, or type what you hear. The assistant turns it into a bet draft and strategy note.</span>
+              <span>Speak, paste, or type what you hear. Ask for today's games, tomorrow's slate, or any date and the assistant will list matchups.</span>
             </div>
             <div class="actions">
               <button class="btn btn-primary" id="listenBtn" type="button">▶ Listen</button>
@@ -532,7 +532,7 @@
           </div>
 
           <div class="input-wrap">
-            <textarea id="composerText" placeholder="Type a call note, or let the microphone capture the audio and then ask for a bet draft."></textarea>
+            <textarea id="composerText" placeholder="Type a call note, or ask: what games are today, tomorrow, or on 2026-06-05?"></textarea>
             <div class="row">
               <button class="btn btn-secondary" id="sendBtn" type="button">Send</button>
               <button class="btn btn-secondary" id="noteBtn" type="button">Add note</button>
@@ -617,6 +617,16 @@
       interimText: "",
       statusLine: "",
     };
+
+    const SCOREBOARD_LEAGUES = [
+      { label: "MLB", sport: "baseball", league: "mlb" },
+      { label: "NHL", sport: "hockey", league: "nhl" },
+      { label: "WNBA", sport: "basketball", league: "wnba" },
+      { label: "NBA", sport: "basketball", league: "nba" },
+      { label: "NFL", sport: "football", league: "nfl" },
+      { label: "College Football", sport: "football", league: "college-football" },
+      { label: "College Basketball", sport: "basketball", league: "mens-college-basketball" },
+    ];
 
     const DOM = {};
     let state = loadState();
@@ -777,6 +787,144 @@
         default:
           return `Speech recognition error: ${error || "unknown"}`;
       }
+    }
+
+    function pad(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function toLocalDateKey(date) {
+      return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
+    }
+
+    function toPrettyDate(date) {
+      return date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    }
+
+    function addDays(date, days) {
+      const next = new Date(date);
+      next.setDate(next.getDate() + days);
+      return next;
+    }
+
+    function parseRequestedDate(text) {
+      const lower = String(text || "").toLowerCase();
+      const today = new Date();
+      if (/\btomorrow\b/.test(lower)) return addDays(today, 1);
+      if (/\byesterday\b/.test(lower)) return addDays(today, -1);
+
+      const iso = lower.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+      if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+
+      const slash = lower.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
+      if (slash) {
+        const year = Number(slash[3].length === 2 ? `20${slash[3]}` : slash[3]);
+        return new Date(year, Number(slash[1]) - 1, Number(slash[2]));
+      }
+
+      const parsed = new Date(text);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+      return today;
+    }
+
+    function isScheduleRequest(text) {
+      const lower = String(text || "").toLowerCase();
+      return /(\bgame\b|\bgames\b|\bschedule\b|\bmatchup\b|\bmatchups\b|\bwho plays\b|\bwhat plays\b|\bwhat games\b|\bgames are\b|\bplay on\b|\bplay(s)?\b.*\b(today|tomorrow|tonight)\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b)/.test(lower);
+    }
+
+    function inferScheduleLeagues(text) {
+      const lower = String(text || "").toLowerCase();
+      const leagues = [];
+      const mentionsCollegeFootball = /\bcollege football\b|\bcfb\b/.test(lower);
+
+      if (/\bmlb\b|\bbaseball\b/.test(lower)) leagues.push("mlb");
+      if (/\bnhl\b|\bhockey\b/.test(lower)) leagues.push("nhl");
+      if (/\bwnba\b/.test(lower)) leagues.push("wnba");
+      if (/\bnba\b|\bbasketball\b/.test(lower)) leagues.push("nba");
+      if (/\bnfl\b|\bcollege football\b|\bcfb\b|\bfootball\b/.test(lower)) {
+        if (mentionsCollegeFootball) leagues.push("college-football");
+        if (/\bnfl\b/.test(lower) || (!mentionsCollegeFootball && /\bfootball\b/.test(lower))) leagues.push("nfl");
+      }
+      if (/\bcollege basketball\b|\bcbb\b|\bmens college basketball\b|\bmen's college basketball\b|\bncaab\b/.test(lower)) leagues.push("mens-college-basketball");
+
+      return [...new Set(leagues)];
+    }
+
+    async function fetchScheduleForLeague(league, dateKey) {
+      const url = `https://site.api.espn.com/apis/site/v2/sports/${league.sport}/${league.league}/scoreboard?dates=${dateKey}&limit=1000`;
+      const response = await fetch(url, { mode: "cors" });
+      if (!response.ok) {
+        throw new Error(`${league.label} returned HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      const events = Array.isArray(data.events) ? data.events : [];
+      return events.map((event) => {
+        const competition = event.competitions?.[0] || {};
+        const competitors = competition.competitors || [];
+        const away = competitors.find((entry) => entry.homeAway === "away");
+        const home = competitors.find((entry) => entry.homeAway === "home");
+        return {
+          league: league.label,
+          name: event.shortName || event.name || "Game",
+          away: away?.team?.shortDisplayName || away?.team?.displayName || "Away",
+          home: home?.team?.shortDisplayName || home?.team?.displayName || "Home",
+          start: event.date || competition.date || event.startDate || "",
+          status: competition.status?.type?.shortDetail || event.status?.type?.shortDetail || competition.status?.type?.description || "Scheduled",
+          odds: competition.odds?.[0]?.moneyline ? `${competition.odds[0].moneyline.away?.close?.odds ?? ""}/${competition.odds[0].moneyline.home?.close?.odds ?? ""}` : "",
+        };
+      });
+    }
+
+    function formatScheduleReply(date, leagueResults) {
+      const groups = leagueResults.filter((entry) => entry.games.length);
+      const totalGames = groups.reduce((sum, entry) => sum + entry.games.length, 0);
+
+      if (!totalGames) {
+        return `No supported games found for ${toPrettyDate(date)}.`;
+      }
+
+      const lines = [`Games for ${toPrettyDate(date)} (${totalGames} total):`];
+      groups.forEach((entry) => {
+        lines.push("");
+        lines.push(`${entry.label}:`);
+        entry.games.slice(0, 8).forEach((game) => {
+          const time = game.start ? new Date(game.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : game.status;
+          lines.push(`- ${time} — ${game.away} at ${game.home}`);
+        });
+        if (entry.games.length > 8) {
+          lines.push(`- ...and ${entry.games.length - 8} more`);
+        }
+      });
+      return lines.join("\n");
+    }
+
+    async function answerScheduleQuery(text) {
+      const date = parseRequestedDate(text);
+      const requestedLeagues = inferScheduleLeagues(text);
+      const leagues = requestedLeagues.length
+        ? SCOREBOARD_LEAGUES.filter((league) => requestedLeagues.includes(league.league))
+        : SCOREBOARD_LEAGUES;
+
+      state.statusLine = `Looking up games for ${toPrettyDate(date)}.`;
+      render();
+
+      try {
+        const dateKey = toLocalDateKey(date);
+        const results = await Promise.allSettled(leagues.map((league) => fetchScheduleForLeague(league, dateKey)));
+        const leagueResults = results.map((result, index) => ({
+          label: leagues[index].label,
+          games: result.status === "fulfilled" ? result.value : [],
+        })).filter((entry) => entry.games.length || requestedLeagues.length);
+
+        const summary = formatScheduleReply(date, leagueResults);
+        pushChat("assistant", summary, "assistant");
+        state.statusLine = "";
+      } catch (error) {
+        state.statusLine = "";
+        pushChat("assistant", `Could not load games for that date: ${error.message}`, "system");
+      }
+
+      render();
     }
 
     function pushChat(role, text, kind = "") {
@@ -994,17 +1142,21 @@
       render();
     }
 
-    function sendMessage() {
+    async function sendMessage() {
       const text = DOM.composerText.value.trim();
       if (!text) return;
       appendTranscript(text, "note");
+      DOM.composerText.value = "";
+      if (isScheduleRequest(text)) {
+        await answerScheduleQuery(text);
+        return;
+      }
       const analysis = detectSignals(text);
       pushChat(
         "assistant",
         `Quick read:\n- ${analysis.notes[0]}\n- ${analysis.flags[0]}\n- ${analysis.next[0]}`,
         "assistant"
       );
-      DOM.composerText.value = "";
       render();
     }
 
